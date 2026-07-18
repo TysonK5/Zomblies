@@ -20,16 +20,37 @@ export function fullLimbs(): LimbState {
 /**
  * Local-space limb centers (feet origin, matching ZombieModel).
  * Torso is large and centered so chest shots land as body HP damage.
- * Arms sit farther out so they don't steal chest hits.
+ * Arms match the raised-out shambling pose (forward + outward reach).
  */
 export const LIMB_LOCAL: Record<LimbId, { x: number; y: number; z: number; r: number }> = {
-  head: { x: 0, y: 1.92, z: 0.04, r: 0.19 },
+  head: { x: 0, y: 1.85, z: 0.04, r: 0.19 },
   /** Primary mass — chest/abdomen */
-  torso: { x: 0, y: 1.38, z: 0.04, r: 0.34 },
-  armL: { x: -0.4, y: 1.42, z: 0.06, r: 0.13 },
-  armR: { x: 0.4, y: 1.42, z: 0.06, r: 0.13 },
-  legL: { x: -0.14, y: 0.52, z: 0.02, r: 0.17 },
-  legR: { x: 0.14, y: 0.52, z: 0.02, r: 0.17 },
+  torso: { x: 0, y: 1.32, z: 0.04, r: 0.34 },
+  // Raised arms straight ahead (shoulder height, forward of chest)
+  armL: { x: -0.32, y: 1.45, z: 0.42, r: 0.15 },
+  armR: { x: 0.32, y: 1.45, z: 0.42, r: 0.15 },
+  legL: { x: -0.14, y: 0.45, z: 0.02, r: 0.17 },
+  legR: { x: 0.14, y: 0.45, z: 0.02, r: 0.17 },
+}
+
+/**
+ * Crawl pose (both legs gone): body low and pitched forward.
+ * Matches ZombieModel hip drop + torso pitch so ground-level aim hits.
+ * Legs are usually missing — spheres kept for completeness.
+ */
+export const LIMB_LOCAL_CRAWL: Record<LimbId, { x: number; y: number; z: number; r: number }> = {
+  // Head reaches forward along ground
+  head: { x: 0, y: 0.45, z: 0.95, r: 0.2 },
+  // Large body blob near ground (primary hit target while crawling)
+  torso: { x: 0, y: 0.38, z: 0.35, r: 0.42 },
+  armL: { x: -0.38, y: 0.28, z: 0.55, r: 0.16 },
+  armR: { x: 0.38, y: 0.28, z: 0.55, r: 0.16 },
+  legL: { x: -0.15, y: 0.2, z: -0.15, r: 0.12 },
+  legR: { x: 0.15, y: 0.2, z: -0.15, r: 0.12 },
+}
+
+export function limbLocalForPose(crawling: boolean) {
+  return crawling ? LIMB_LOCAL_CRAWL : LIMB_LOCAL
 }
 
 /**

@@ -359,4 +359,141 @@ export function applyIdleSway(
   }
 }
 
+// ── Third-person mapping (same clips / timing as FPS) ───────────────
+
+export type ThirdPersonWeaponPose = {
+  /** Right arm euler (x, y, z) — shoulder, hanging limb along −Y */
+  armR: { x: number; y: number; z: number }
+  /** Left arm euler */
+  armL: { x: number; y: number; z: number }
+  /**
+   * Held weapon offset/rotation in the hand socket.
+   * Socket sits at the hand; world WeaponModel already aims barrel along arm −Y.
+   * Deltas here match FPS kick / lever / pump / thrust (no base −90°).
+   */
+  weapon: { x: number; y: number; z: number; rx: number; ry: number; rz: number }
+}
+
+/**
+ * Sample the same FPS keyframe clip and map it onto third-person arms + weapon.
+ *
+ * Arm convention (hanging along −Y at identity):
+ *   rot.x ≈ −π/2  → arm raised, hand forward (horizontal aim)
+ *   rot.z          → outward / inward from torso
+ *
+ * Weapon world mesh is pre-rotated so barrel || arm −Y, so a raised arm aims
+ * the gun horizontally ahead — not vertically.
+ */
+export function sampleThirdPersonWeaponPose(
+  weaponId: WeaponId,
+  phase: WeaponAnimPhase,
+  animU: number,
+  walkSwing = 0,
+): ThirdPersonWeaponPose {
+  const clipId = phaseToClip(phase)
+  const rest = sampleClip(getWeaponClip(weaponId, 'idle'), 0)
+  const pose = sampleClip(getWeaponClip(weaponId, clipId), phase === 'idle' ? 0 : animU)
+
+  const dx = pose.x - rest.x
+  const dy = pose.y - rest.y
+  const dz = pose.z - rest.z
+  const drx = pose.rx - rest.rx
+  const dry = pose.ry - rest.ry
+  const drz = pose.rz - rest.rz
+
+  // Ready aim: both arms raised forward, slightly out — two-hand hold
+  // ~−1.45 rad ≈ 83° so hands sit at shoulder height aiming ahead
+  let armRX = -1.42
+  let armRY = 0.12
+  let armRZ = -0.28
+  let armLX = -1.35
+  let armLY = -0.08
+  let armLZ = 0.42
+
+  if (weaponId === 'pitchfork') {
+    // Two hands on shaft, parallel reach
+    armRX = -1.38
+    armRY = 0.06
+    armRZ = -0.12
+    armLX = -1.32
+    armLY = -0.04
+    armLZ = 0.16
+  } else if (weaponId === 'fist') {
+    armRX = 0.12
+    armRY = 0
+    armRZ = -0.05
+    armLX = 0.12
+    armLY = 0
+    armLZ = 0.05
+  }
+
+  if (weaponId === 'fist') {
+    // Punch: FPS −z thrust → right arm snaps forward
+    armRX = 0.15 + drx * 1.3 - dz * 2.0 - dy * 0.7
+    armRY = dry * 0.6 - dx * 0.5
+    armRZ = -0.05 + drz * 1.1 - dx * 0.6
+    armLX = 0.25 + walkSwing * 0.45
+    armLY = 0
+    armLZ = 0.08
+    if (phase === 'idle') {
+      armRX = walkSwing * 0.7
+      armLX = -walkSwing * 0.7
+      armRY = 0
+      armLY = 0
+      armRZ = -0.05
+      armLZ = 0.05
+    }
+  } else if (weaponId === 'pitchfork') {
+    // Pull-in is +dz (tips closer / arms retract); stab is −dz (arms extend)
+    // Map to shoulder pitch: more negative x = more forward reach
+    armRX += -dz * 0.55 + drx * 0.9 - dy * 0.5
+    armLX += -dz * 0.5 + drx * 0.8 - dy * 0.45
+    armRZ += drz * 0.5 + dry * 0.3
+    armLZ += -drz * 0.35 + dry * 0.2
+    armRY += dx * 0.25
+    armLY += dx * 0.15
+    if (phase === 'idle') {
+      armRX += walkSwing * 0.08
+      armLX -= walkSwing * 0.08
+    }
+  } else {
+    // Guns: two-hand aim — kick raises muzzle (FPS −rx), lever/reload tip down (+rx)
+    // Shoulder pitch: FPS −rx (muzzle climb) → arm a bit higher (−x)
+    armRX += drx * 0.85 - dy * 0.7 - dz * 0.35
+    armLX += drx * 0.7 - dy * 0.55 - dz * 0.3
+    // Roll / yaw from FPS → shoulder twist
+    armRZ += drz * 0.75 + dry * 0.4
+    armLZ += -drz * 0.45 + dry * 0.3
+    armRY += dx * 0.35 + dry * 0.2
+    armLY += dx * 0.2
+    // Left hand rides forend — slightly more forward than right
+    armLX -= 0.06
+    if (phase === 'idle') {
+      armRX += walkSwing * 0.07
+      armLX -= walkSwing * 0.07
+    }
+  }
+
+  // Weapon deltas in hand socket (world model already points barrel along arm −Y).
+  // FPS −rx = muzzle climb → tip weapon up relative to arm (positive local pitch
+  // after world orient is non-obvious; use rx matching FPS kick sign on socket).
+  // Socket local: after identity, anim rotates the pre-oriented gun.
+  const weapon = {
+    x: dx * 0.1,
+    // Along arm: −y is toward fingers / muzzle side of hand offset
+    y: dy * 0.08 - dz * 0.06,
+    z: dx * 0.04,
+    // Match FPS pitch language so kick / lever read the same
+    rx: drx * 0.9,
+    ry: dry * 0.75,
+    rz: drz * 0.85,
+  }
+
+  return {
+    armR: { x: armRX, y: armRY, z: armRZ },
+    armL: { x: armLX, y: armLY, z: armLZ },
+    weapon,
+  }
+}
+
 export { REST as VIEW_REST, IDLE_SWAY_BASE }

@@ -321,37 +321,37 @@ export function FootMeshes({
   )
   const x = side === 'L' ? -1 : 1
 
+  // Sole rests at local y = 0 so character root on ground = feet planted.
   if (style === 'bare') {
     return (
-      <mesh position={[x * 0.02, -0.12, 0.04]} material={skinMat} castShadow>
+      <mesh position={[x * 0.02, 0.05, 0.04]} material={skinMat} castShadow>
         <boxGeometry args={[0.14, 0.1, 0.24]} />
       </mesh>
     )
   }
 
   if (style === 'mismatched') {
-    // One boot, one bare
     if (side === 'L') {
       return (
-        <mesh position={[0, -0.1, 0.05]} material={bootMat} castShadow>
+        <mesh position={[0, 0.07, 0.05]} material={bootMat} castShadow>
           <boxGeometry args={[0.16, 0.14, 0.28]} />
         </mesh>
       )
     }
     return (
-      <mesh position={[0, -0.12, 0.04]} material={skinMat} castShadow>
+      <mesh position={[0, 0.05, 0.04]} material={skinMat} castShadow>
         <boxGeometry args={[0.14, 0.1, 0.24]} />
       </mesh>
     )
   }
 
-  // boots (default)
+  // boots (default) — bottom of boot at y=0
   return (
     <group>
-      <mesh position={[0, -0.08, 0.04]} material={bootMat} castShadow>
+      <mesh position={[0, 0.09, 0.04]} material={bootMat} castShadow>
         <boxGeometry args={[0.16, 0.18, 0.26]} />
       </mesh>
-      <mesh position={[0, 0.02, 0]} material={pantsMat} castShadow>
+      <mesh position={[0, 0.2, 0]} material={pantsMat} castShadow>
         <boxGeometry args={[0.15, 0.08, 0.15]} />
       </mesh>
     </group>

@@ -1,9 +1,10 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { Barn } from './buildings/Barn'
 import { Farmhouse } from './buildings/Farmhouse'
 import { Fence } from './buildings/Fence'
 import { ZombieShowcase } from './ZombieShowcase'
+import { addGroundSurface, clearGroundSurfaces, createHeightPad } from '../game/ground'
 
 function Tree({ position }: { position: [number, number, number] }) {
   const trunk = useMemo(() => new THREE.MeshStandardMaterial({ color: '#4A3728', roughness: 0.95 }), [])
@@ -81,9 +82,26 @@ export function FarmMap() {
   const darkGrass = useMemo(() => new THREE.MeshStandardMaterial({ color: '#2A4520', roughness: 0.98 }), [])
   const gravel = useMemo(() => new THREE.MeshStandardMaterial({ color: '#5A564E', roughness: 1 }), [])
 
+  // Register walkable height surfaces (flat base + future stairs/mounds)
+  useEffect(() => {
+    clearGroundSurfaces()
+    // Example porch pad under farmhouse front — ready pattern for stairs later
+    addGroundSurface(
+      createHeightPad({
+        minX: 6,
+        maxX: 14,
+        minZ: -3.2,
+        maxZ: -0.4,
+        height: 0.2,
+        label: 'farmhouse-porch',
+      }),
+    )
+    return () => clearGroundSurfaces()
+  }, [])
+
   return (
     <group>
-      {/* Ground plane */}
+      {/* Ground plane — visual mesh; height comes from ground sampler */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow material={grass}>
         <planeGeometry args={[80, 80]} />
       </mesh>

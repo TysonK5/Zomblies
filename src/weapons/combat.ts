@@ -3,8 +3,9 @@ import type { WeaponDef } from './types'
 import { damageables } from './damageables'
 import { spawnHitMarker } from './hitMarkers'
 import { spawnDamageNumber } from './damageNumbers'
-import { LIMB_LOCAL, type LimbId } from './limbs'
+import { limbLocalForPose, type LimbId } from './limbs'
 import { getStaticWorldColliders } from '../game/worldColliders'
+import { getGroundHeight } from '../game/ground'
 import type { AabbCollider, CircleCollider, Collider } from '../game/collision'
 
 const _origin = new THREE.Vector3()
@@ -165,26 +166,38 @@ function raycastZombieLimbs(
 
   for (const [id, body] of damageables) {
     if (body.hp <= 0) continue
+    const crawling = !!body.crawling
+    const layout = limbLocalForPose(crawling)
     const pos = body.getPosition()
     const yaw = body.getYaw()
-    const cos = Math.cos(yaw)
-    const sin = Math.sin(yaw)
 
-    for (const limb of Object.keys(LIMB_LOCAL) as LimbId[]) {
+    for (const limb of Object.keys(layout) as LimbId[]) {
       if (!body.limbs[limb]) continue
-      const local = LIMB_LOCAL[limb]
-      const wx = pos.x + local.x * cos + local.z * sin
-      const wy = pos.y + local.y
-      const wz = pos.z - local.x * sin + local.z * cos
-      const r = local.r
+      const local = layout[limb]
+
+      // Prefer full root transform (crawl visual lives under root local space)
+      let wx: number
+      let wy: number
+      let wz: number
+      if (body.localToWorldPoint) {
+        const w = body.localToWorldPoint(local.x, local.y, local.z)
+        wx = w.x
+        wy = w.y
+        wz = w.z
+      } else {
+        const cos = Math.cos(yaw)
+        const sin = Math.sin(yaw)
+        wx = pos.x + local.x * cos + local.z * sin
+        wy = pos.y + local.y
+        wz = pos.z - local.x * sin + local.z * cos
+      }
+      // Slightly larger spheres while crawling (body is flatter / harder to aim)
+      const r = crawling ? local.r * 1.15 : local.r
 
       const t = raySphere(origin, dir, wx, wy, wz, r)
       if (t === null || t < 0.05 || t > maxDist) continue
 
       const pri = LIMB_PRIORITY[limb]
-      // 1) much closer → take it
-      // 2) similar distance → prefer head/torso over arms/legs
-      // 3) slightly closer with same/higher priority → take it
       let take = false
       if (best === null) take = true
       else if (t < bestT - 0.12) take = true
@@ -245,20 +258,27 @@ function raycastWorld(origin: THREE.Vector3, dir: THREE.Vector3, maxDist: number
   let bestT = maxDist
   let best: HitResult | null = null
 
-  // Ground plane y = 0
+  // Ground surface (flat now; height field / pads later via getGroundHeight)
   if (Math.abs(dir.y) > 1e-6) {
-    const t = -origin.y / dir.y
-    if (t > 0.05 && t < bestT) {
-      bestT = t
-      best = {
-        t,
-        x: origin.x + dir.x * t,
-        y: 0.02,
-        z: origin.z + dir.z * t,
-        nx: 0,
-        ny: 1,
-        nz: 0,
-        kind: 'world',
+    // Iterate once with height at hit XZ (good enough for gentle slopes)
+    const t0 = (0 - origin.y) / dir.y
+    if (t0 > 0.05 && t0 < maxDist) {
+      const hx = origin.x + dir.x * t0
+      const hz = origin.z + dir.z * t0
+      const gy = getGroundHeight(hx, hz)
+      const t = (gy - origin.y) / dir.y
+      if (t > 0.05 && t < bestT) {
+        bestT = t
+        best = {
+          t,
+          x: origin.x + dir.x * t,
+          y: gy + 0.02,
+          z: origin.z + dir.z * t,
+          nx: 0,
+          ny: 1,
+          nz: 0,
+          kind: 'world',
+        }
       }
     }
   }

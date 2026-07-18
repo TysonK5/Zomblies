@@ -17,6 +17,8 @@ export type DamageableBody = {
   hp: number
   maxHp: number
   limbs: LimbState
+  /** True when both legs are gone — hitboxes use crawl layout */
+  crawling?: boolean
   getPosition: () => { x: number; y: number; z: number }
   getYaw: () => number
   /**

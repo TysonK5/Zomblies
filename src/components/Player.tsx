@@ -5,6 +5,8 @@ import { EYE_HEIGHT, PLAYER_RADIUS, WORLD_BOUNDS } from '../game/constants'
 import { playerState } from '../game/playerState'
 import { moveAndCollide } from '../game/collision'
 import { collisionWorld } from '../game/collisionWorld'
+import { resolvePlayerAgainstZombies } from '../game/agentPush'
+import { getGroundHeight, resolveFeetOnGround } from '../game/ground'
 import { getGameSettings } from '../game/gameSettings'
 import { getKeybindings, isRebinding, mouseButtonCode } from '../game/keybindings'
 import {
@@ -56,8 +58,9 @@ export function Player({ onLockChange }: PlayerProps) {
 
   useEffect(() => {
     const spawn = moveAndCollide(0, 16, PLAYER_RADIUS, 0, 0, collisionWorld.queryStatic())
-    feet.current.set(spawn.x, 0, spawn.z)
-    camSmooth.current.set(spawn.x, EYE_HEIGHT, spawn.z)
+    const groundY = getGroundHeight(spawn.x, spawn.z)
+    feet.current.set(spawn.x, groundY, spawn.z)
+    camSmooth.current.set(spawn.x, groundY + EYE_HEIGHT, spawn.z)
     camera.position.copy(camSmooth.current)
     camera.rotation.order = 'YXZ'
     playerState.update(0, spawn.x, spawn.z)
@@ -209,26 +212,45 @@ export function Player({ onLockChange }: PlayerProps) {
     }
     verticalVel.current -= GRAVITY * dt
 
+    // Hard collide map only — zombies use soft 50/50 push
     const dx = velocity.current.x * dt
     const dz = velocity.current.z * dt
-    const solids = collisionWorld.query('player')
-    const next = moveAndCollide(feet.current.x, feet.current.z, PLAYER_RADIUS, dx, dz, solids)
+    const statics = collisionWorld.queryStatic()
+    const next = moveAndCollide(feet.current.x, feet.current.z, PLAYER_RADIUS, dx, dz, statics)
     feet.current.x = next.x
     feet.current.z = next.z
     feet.current.y += verticalVel.current * dt
 
-    if (feet.current.y <= 0) {
-      feet.current.y = 0
-      verticalVel.current = 0
-      grounded.current = true
-    }
-
     feet.current.x = THREE.MathUtils.clamp(feet.current.x, WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX)
     feet.current.z = THREE.MathUtils.clamp(feet.current.z, WORLD_BOUNDS.minZ, WORLD_BOUNDS.maxZ)
 
-    const cleaned = moveAndCollide(feet.current.x, feet.current.z, PLAYER_RADIUS, 0, 0, solids)
+    const cleaned = moveAndCollide(feet.current.x, feet.current.z, PLAYER_RADIUS, 0, 0, statics)
     feet.current.x = cleaned.x
     feet.current.z = cleaned.z
+
+    // Soft equal-mass push vs zombies (both slow; player can shove aside)
+    const pushed = resolvePlayerAgainstZombies(
+      feet.current.x,
+      feet.current.z,
+      velocity.current.x,
+      velocity.current.z,
+      dt,
+    )
+    feet.current.x = pushed.x
+    feet.current.z = pushed.z
+    velocity.current.x = pushed.vx
+    velocity.current.z = pushed.vz
+
+    // Stick to terrain (flat now; stairs/mounds via ground surfaces later)
+    const foot = resolveFeetOnGround(
+      feet.current.x,
+      feet.current.z,
+      feet.current.y,
+      verticalVel.current,
+    )
+    feet.current.y = foot.y
+    verticalVel.current = foot.verticalVel
+    grounded.current = foot.grounded
 
     // Body faces move direction (model +Z). Idle TPS: face look direction.
     if (hasMove) {

@@ -24,15 +24,29 @@ type WeaponModelProps = {
 }
 
 /**
- * Shared weapon meshes. Local: grip near origin, barrel toward -Z.
- * FPS variant is oversized for classic bottom-of-screen presence.
+ * Shared weapon meshes. Local: grip near origin, barrel / tines toward -Z.
+ *
+ * FPS: camera places the group; slight tilt for bottom-of-screen presence.
+ * World (TPS): re-orient so barrel maps to parent −Y (hand axis of hanging arms).
+ *   Mesh −Z → parent −Y via Rx(−π/2). Hands hang along −Y; when arms raise
+ *   forward, −Y points ahead so the weapon aims horizontally — not vertically.
  */
 export function WeaponModel({ id, variant = 'fps' }: WeaponModelProps) {
   const mesh = <WeaponMesh id={id} />
 
   if (variant === 'world') {
+    // Pitchfork: tips at z=0, grip ~z=1.2 — shift so grip sits in the hand
+    // and tines extend along −Y after the orient rotation.
+    if (id === 'pitchfork') {
+      return (
+        <group scale={1.05} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
+          <group position={[0, 0, -1.05]}>{mesh}</group>
+        </group>
+      )
+    }
+    // Guns: grip near origin already; barrel −Z → hand −Y
     return (
-      <group scale={1.05} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.04]}>
+      <group scale={1.05} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0.02]}>
         {mesh}
       </group>
     )

@@ -40,4 +40,13 @@ export type ZombieModelProps = {
   limbs?: LimbState
   /** Locomotion: crawl if both legs gone */
   crawl?: boolean
+  /** True while actively walking/chasing (drives shambling gait) */
+  moving?: boolean
+  /** 0–1 gait intensity (speed relative to max) */
+  gait?: number
+  /**
+   * Optional live locomotion sample (avoids React re-renders every frame).
+   * `speed` is horizontal world units/sec — drives walk-cycle cadence.
+   */
+  getLocomotion?: () => { moving: boolean; gait: number; speed: number }
 }

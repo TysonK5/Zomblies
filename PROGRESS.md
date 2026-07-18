@@ -100,8 +100,9 @@ src/
   environment/
     timeOfDay.ts          # TOD presets
   zombie/
-    ZombieModel.tsx       # Single modular body
-    ZombieAI.tsx          # Chase controller
+    ZombieModel.tsx       # Modular body + raised-arm shamble
+    ZombieAI.tsx          # Chase controller + locomotion gait
+    zombieWalk.ts         # sampleZombieWalk pose sampler
     Accessories.tsx       # Head / face / torso / hand / feet
     palettes.ts           # Colors, presets, random
     types.ts
@@ -111,7 +112,202 @@ README.md                 # Quick start
 
 ---
 
-## Changelog
+### 2026-07-18 — Fix 3rd-person weapon orientation
+
+**Type:** Fix  
+**Prompt / request:** TPS weapon anims don’t match FPS; weapons held vertically.  
+**Status:** Done
+
+**Changes**
+- Root cause: world mesh `+90°` and hand socket `−90°` cancelled, so barrel stayed on arm local −Z; raised arms made that axis point down (vertical gun)
+- World weapons now use a single `Rx(−π/2)` so barrel maps to arm −Y (hand axis → horizontal when aiming)
+- Pitchfork grip offset so shaft sits in hand, tines ahead
+- TPS arm ready pose is a clear two-hand horizontal aim; same FPS clip deltas for kick/lever/pump/reload/melee
+- Hand socket no longer applies a base −90° (only anim deltas)
+
+**Files touched**
+- `src/weapons/WeaponModels.tsx`
+- `src/weapons/weaponAnims.ts`
+- `src/components/PlayerAvatar.tsx`
+- `PROGRESS.md`
+
+---
+
+### 2026-07-18 — Straight-ahead zombie arms
+
+**Type:** Fix  
+**Prompt / request:** Zombie arms look crossed — make them straight ahead.  
+**Status:** Done
+
+**Changes**
+- Removed large shoulder Z/Y twist that folded arms across the chest
+- Reach is almost pure pitch (`rot.x ≈ −π/2`) with tiny outward Z only
+- Straighter elbows; no forearm Z bias
+- Arm hitboxes moved to match forward reach
+
+**Files touched**
+- `src/zombie/zombieWalk.ts`
+- `src/zombie/ZombieModel.tsx`
+- `src/weapons/limbs.ts`
+- `PROGRESS.md`
+
+---
+
+### 2026-07-18 — Sync walk cadence to travel speed
+
+**Type:** Fix  
+**Prompt / request:** Zombie legs animate much slower than they move (skating).  
+**Status:** Done
+
+**Changes**
+- Walk phase advances from actual distance traveled (`speed / strideLen * π` per step), not wall-clock
+- `ZombieAI` reports post-collision horizontal `speed` via `getLocomotion()`
+- Slightly longer leg swing at high gait so steps cover more ground
+
+**Files touched**
+- `src/zombie/zombieWalk.ts`
+- `src/zombie/ZombieModel.tsx`
+- `src/zombie/ZombieAI.tsx`
+- `src/zombie/types.ts`
+- `PROGRESS.md`
+
+---
+
+### 2026-07-18 — Raised-arm shambling walk
+
+**Type:** Feature  
+**Prompt / request:** Upgrade zombie walk — arms raised out while walking; better arm/leg use (classic COD / Romero reach).  
+**Status:** Done
+
+**Changes**
+- New `sampleZombieWalk()` pose sampler: arms nearly horizontal forward + outward spread, limp asymmetric legs, torso lean, head loll
+- Animated elbows (forearm claw bend) and knees (thigh/shin chain) so limbs articulate instead of stiff single-bone swings
+- `ZombieAI` drives gait via `getLocomotion()` (moving + intensity) without React re-renders
+- Standing arm hitboxes shifted forward/out to match the reach pose
+- Idle still keeps arms partially raised (undead “ready” pose)
+
+**Files touched**
+- `src/zombie/zombieWalk.ts` (new)
+- `src/zombie/ZombieModel.tsx`
+- `src/zombie/ZombieAI.tsx`
+- `src/zombie/types.ts`
+- `src/weapons/limbs.ts`
+- `PROGRESS.md`
+
+**Notes**
+- Hard refresh to pick up the new walk cycle. Per-zombie seed varies limp side and arm height.
+
+---
+
+### 2026-07-18 — Sync 3rd-person weapon anims with 1st person
+
+**Type:** Feature  
+**Prompt / request:** Update 3rd-person weapon use animations to match first person.  
+**Status:** Done
+
+**Changes**
+- Shared `sampleThirdPersonWeaponPose()` maps the same FPS keyframe clips (fire / lever / pump / reload / melee / equip) onto TPS arms + held weapon
+- Uses identical `weaponState.phase` and `animU` timing as the viewmodel
+- Weapon socket applies the same rotational/positional deltas (kick, lever throw, pump, pitchfork thrust)
+- Walk swing only blends in during idle
+
+**Files touched**
+- `src/weapons/weaponAnims.ts`
+- `src/components/PlayerAvatar.tsx`
+- `PROGRESS.md`
+
+---
+
+### 2026-07-18 — Fix death/gib ground clipping
+
+**Type:** Fix  
+**Prompt / request:** When zombies fall or lose parts they clip through the ground.  
+**Status:** Done
+
+**Changes**
+- Death tip-over lifts the body onto the surface (no more downward sink); small forward slide so corpse lays flat
+- Limb gibs use `getGroundHeight` + rest offset; settle and stop spinning on contact
+- Head explosion chunks bounce then rest on terrain
+
+**Files touched**
+- `src/zombie/ZombieAI.tsx`
+- `src/zombie/Gibs.tsx`
+- `PROGRESS.md`
+
+---
+
+### 2026-07-18 — Ground leveling + height sampler
+
+**Type:** Feature / Fix  
+**Prompt / request:** Player and assets float off the ground; make them level, with support for future stairs and mounds.  
+**Status:** Done
+
+**Changes**
+- `ground.ts`: height sampler with pluggable surfaces (`createHeightPad`, `createRamp`) for stairs/mounds later
+- Player feet and zombies snap to `getGroundHeight(x,z)`; jump/land uses `resolveFeetOnGround`
+- Character soles sit at local y=0 (player avatar + zombie feet/boots fixed)
+- Farmhouse porch registered as a 0.2 height pad (walk-up demo of multi-level)
+- Bullet ground hits use sampled height
+
+**Files touched**
+- `src/game/ground.ts`
+- `src/components/Player.tsx`
+- `src/components/PlayerAvatar.tsx`
+- `src/components/FarmMap.tsx`
+- `src/zombie/ZombieModel.tsx`
+- `src/zombie/ZombieAI.tsx`
+- `src/zombie/Accessories.tsx`
+- `src/weapons/combat.ts`
+- `src/weapons/limbs.ts`
+- `PROGRESS.md`
+
+**Notes**
+- Add stairs later with stacked `createHeightPad` / `createRamp` + matching visual meshes
+- Buildings already bottom at y≈0; hay/trees were already grounded
+
+---
+
+### 2026-07-18 — Player can push zombies (50/50 mass)
+
+**Type:** Feature  
+**Prompt / request:** Allow the player to push zombies while moving at 50/50 weight — both slow down, player can ultimately push them aside.  
+**Status:** Done
+
+**Changes**
+- Soft equal-mass contact: 50/50 separation, shared normal velocity damping
+- Player slows when jammed into zombies; zombies receive shove + lateral slide
+- Player hard-collides map only; zombie push is soft (not a hard wall)
+- Zombies apply residual shove velocity and ~50% chase slowdown while being pushed
+
+**Files touched**
+- `src/game/agentPush.ts`
+- `src/game/collisionWorld.ts`
+- `src/components/Player.tsx`
+- `src/zombie/ZombieAI.tsx`
+- `PROGRESS.md`
+
+---
+
+### 2026-07-18 — Fix crawl zombie hitboxes
+
+**Type:** Fix  
+**Prompt / request:** When zombies crawl on the ground, weapons cannot hurt them.  
+**Status:** Done
+
+**Changes**
+- Root cause: hit spheres stayed at **standing height** after legs were gone
+- Added `LIMB_LOCAL_CRAWL` low/forward spheres matching the crawl visual
+- Damageable `crawling` flag switches layout; slightly larger spheres while crawling
+- Limb world positions use `localToWorldPoint` when available
+
+**Files touched**
+- `src/weapons/limbs.ts`
+- `src/weapons/combat.ts`
+- `src/weapons/damageables.ts`
+- `src/zombie/ZombieAI.tsx`
+- `PROGRESS.md`
+
+---
 
 ### 2026-07-18 — Pushed project to GitHub
 
@@ -730,6 +926,11 @@ README.md                 # Quick start
 | 2026-07-18 | Pitchfork pull-stab on crosshair | Tip-at-origin mesh + center-line anim |
 | 2026-07-18 | Chest damage / HP feedback | Full torso DMG + numbers + HP bar |
 | 2026-07-18 | Empty gun fire auto-reloads | tryFire → tryReload when reserve > 0 |
+| 2026-07-18 | Crawling zombies unhittable | Crawl-height limb hitboxes |
+| 2026-07-18 | Player push zombies 50/50 mass | Soft contact + shove aside |
+| 2026-07-18 | Level to ground + multi-height ready | `ground.ts` sampler + foot fix |
+| 2026-07-18 | Death/gibs clip through ground | Lift corpse + ground-clamped gibs |
+| 2026-07-18 | Match 3rd-person weapon anims to FPS | Shared clip sampling → TPS arms |
 
 ---
 
