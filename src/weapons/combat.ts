@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import type { WeaponDef } from './types'
 import { damageables } from './damageables'
-import { spawnHitMarker } from './hitMarkers'
+import { spawnHitMarker, spawnZombieWoundFx } from './hitMarkers'
 import { spawnDamageNumber } from './damageNumbers'
 import { limbLocalForPose, type LimbId } from './limbs'
 import { getStaticWorldColliders } from '../game/worldColliders'
@@ -63,29 +63,35 @@ export function fireWeapon(
       const body = damageables.get(hit.zombieId)
       if (!body || body.hp <= 0) continue
 
-      // Flesh impacts — stick to zombie so they move with the body
-      spawnHitMarker({
+      // Limb sphere center + radius so blood patches wrap the curved surface
+      const layout = limbLocalForPose(!!body.crawling)
+      const limbSphere = layout[hit.limb]
+      const r = limbSphere.r * (body.crawling ? 1.15 : 1)
+      let cx = hit.x - hit.nx * r
+      let cy = hit.y - hit.ny * r
+      let cz = hit.z - hit.nz * r
+      if (body.localToWorldPoint) {
+        const c = body.localToWorldPoint(limbSphere.x, limbSphere.y, limbSphere.z)
+        cx = c.x
+        cy = c.y
+        cz = c.z
+      }
+
+      // Hole + blood band that wraps around the limb/torso sphere
+      spawnZombieWoundFx({
         x: hit.x,
         y: hit.y,
         z: hit.z,
         nx: hit.nx,
         ny: hit.ny,
         nz: hit.nz,
-        surface: 'flesh',
-        scale: hit.limb === 'head' ? 0.22 : 0.14,
+        cx,
+        cy,
+        cz,
+        radius: r,
         attachId: hit.zombieId,
-      })
-      spawnHitMarker({
-        x: hit.x + hit.nx * 0.05,
-        y: hit.y + hit.ny * 0.05,
-        z: hit.z + hit.nz * 0.05,
-        nx: hit.nx,
-        ny: hit.ny,
-        nz: hit.nz,
-        surface: 'blood_mist',
-        scale: hit.limb === 'head' ? 0.35 : 0.2,
-        life: 0.45,
-        attachId: hit.zombieId,
+        head: hit.limb === 'head',
+        melee: def.kind === 'melee',
       })
 
       const result = body.applyDamage(def.damage, hit.limb, {
@@ -96,10 +102,15 @@ export function fireWeapon(
       if (result.hpDamage > 0) {
         const kind =
           hit.limb === 'head' ? 'head' : result.killed ? 'kill' : hit.limb === 'torso' ? 'body' : 'limb'
+        // Stick flat on the hit surface (not floating billboard off the body)
         spawnDamageNumber({
           x: hit.x,
-          y: hit.y + 0.15,
+          y: hit.y,
           z: hit.z,
+          nx: hit.nx,
+          ny: hit.ny,
+          nz: hit.nz,
+          attachId: hit.zombieId,
           amount: result.hpDamage,
           kind: result.killed && hit.limb === 'head' ? 'head' : result.killed ? 'kill' : kind,
         })

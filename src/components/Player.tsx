@@ -76,6 +76,8 @@ export function Player({ onLockChange }: PlayerProps) {
       if (e.code === b.weapon3) weaponState.selectSlot(3)
       if (e.code === b.weapon4) weaponState.selectSlot(4)
       if (e.code === b.weapon5) weaponState.selectSlot(5)
+      if (e.code === b.weapon6) weaponState.selectSlot(6)
+      if (e.code === b.weapon7) weaponState.selectSlot(7)
       if (e.code === b.reload) weaponState.tryReload(gameTime.current)
       if (e.code === b.toggleCamera) {
         e.preventDefault()
@@ -121,6 +123,8 @@ export function Player({ onLockChange }: PlayerProps) {
       if (code === b.weapon3) weaponState.selectSlot(3)
       if (code === b.weapon4) weaponState.selectSlot(4)
       if (code === b.weapon5) weaponState.selectSlot(5)
+      if (code === b.weapon6) weaponState.selectSlot(6)
+      if (code === b.weapon7) weaponState.selectSlot(7)
       if (code === b.reload) weaponState.tryReload(gameTime.current)
       if (code === b.toggleCamera) toggleCameraMode()
     }

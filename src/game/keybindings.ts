@@ -17,6 +17,8 @@ export type InputAction =
   | 'weapon3'
   | 'weapon4'
   | 'weapon5'
+  | 'weapon6'
+  | 'weapon7'
   | 'cycleTimeOfDay'
   | 'toggleCamera'
 
@@ -36,6 +38,8 @@ export const ACTION_LABELS: Record<InputAction, string> = {
   weapon3: 'Weapon 3 — Double Barrel',
   weapon4: 'Weapon 4 — .22 Lever',
   weapon5: 'Weapon 5 — Pump Shotgun',
+  weapon6: 'Weapon 6 — MP40',
+  weapon7: 'Weapon 7 — Revolver',
   cycleTimeOfDay: 'Cycle day / night',
   toggleCamera: 'Toggle 1st / 3rd person',
 }
@@ -55,6 +59,8 @@ export const ACTION_ORDER: InputAction[] = [
   'weapon3',
   'weapon4',
   'weapon5',
+  'weapon6',
+  'weapon7',
   'cycleTimeOfDay',
   'toggleCamera',
 ]
@@ -73,6 +79,8 @@ export const DEFAULT_KEYBINDINGS: Keybindings = {
   weapon3: 'Digit3',
   weapon4: 'Digit4',
   weapon5: 'Digit5',
+  weapon6: 'Digit6',
+  weapon7: 'Digit7',
   cycleTimeOfDay: 'KeyT',
   toggleCamera: 'KeyV',
 }

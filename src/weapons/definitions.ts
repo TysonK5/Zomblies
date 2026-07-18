@@ -6,6 +6,8 @@ export const WEAPON_ORDER: WeaponId[] = [
   'double_barrel',
   'lever22',
   'pump_shotgun',
+  'mp40',
+  'revolver',
 ]
 
 export const WEAPONS: Record<WeaponId, WeaponDef> = {
@@ -78,6 +80,46 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     pellets: 7,
     spread: 0.09,
     slot: 5,
+  },
+  /**
+   * MP40 — WWII SMG (COD-style full-auto + mag-drop reload).
+   * ~500 RPM, 32-round stick mag, mid-range spray.
+   */
+  mp40: {
+    id: 'mp40',
+    name: 'MP40',
+    kind: 'gun',
+    damage: 18,
+    range: 42,
+    /** ~500 rounds/min full auto */
+    fireCooldown: 0.12,
+    magazineSize: 32,
+    startReserve: 128,
+    /** Drop mag → insert → charge handle */
+    reloadTime: 2.35,
+    pellets: 1,
+    spread: 0.028,
+    slot: 6,
+  },
+  /**
+   * Revolver — UE5 FPS-style single-action feel (heavy kick, cylinder reload).
+   * Ref: https://www.youtube.com/watch?v=6kYep7sWK88
+   */
+  revolver: {
+    id: 'revolver',
+    name: 'Revolver',
+    kind: 'gun',
+    damage: 48,
+    range: 48,
+    /** Deliberate single shots — hammer cycle between rounds */
+    fireCooldown: 0.55,
+    magazineSize: 6,
+    startReserve: 48,
+    /** Swing cylinder → eject → load → close → hammer */
+    reloadTime: 2.8,
+    pellets: 1,
+    spread: 0.018,
+    slot: 7,
   },
 }
 

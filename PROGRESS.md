@@ -112,6 +112,69 @@ README.md                 # Quick start
 
 ---
 
+### 2026-07-18 — Bullet holes + blood on zombie hits
+
+**Type:** Feature  
+**Prompt / request:** Add holes and blood when shooting zombie parts.  
+**Status:** Done
+
+**Changes**
+- Layered wound FX per hit: dark bullet hole, sticky blood splat(s), mist puff, flying droplets
+- Holes/splats stick to zombie root (follow walk/death); spray uses gravity and becomes ground splat
+- Head / melee hits are larger and bloodier; limb loss adds stump wound layers
+- Higher marker cap so packs keep stacked wounds
+
+**Files touched**
+- `src/weapons/hitMarkers.ts`, `combat.ts`, `damageables.ts`
+- `src/components/HitMarkers.tsx`
+- `src/zombie/ZombieAI.tsx`
+- `PROGRESS.md`
+
+---
+
+### 2026-07-18 — Add revolver
+
+**Type:** Feature  
+**Prompt / request:** Add a revolver using UE5 FPS revolver anims as sample (https://www.youtube.com/watch?v=6kYep7sWK88).  
+**Status:** Done
+
+**Changes**
+- 6-shot high-damage revolver, deliberate fire rate, cylinder full reload
+- Mesh: frame, cylinder, barrel, hammer, wood grip
+- Fire: heavy muzzle flip + settle; reload: swing open → dump → load → snap shut
+- Slot 7 / key `7`; conical muzzle flash at short barrel
+
+**Files touched**
+- `src/weapons/types.ts`, `definitions.ts`, `WeaponModels.tsx`, `weaponAnims.ts`, `WeaponView.tsx`
+- `src/game/keybindings.ts`
+- `src/components/Player.tsx`, `ControlsLegend.tsx`
+- `PROGRESS.md`
+
+---
+
+### 2026-07-18 — Add MP40 SMG
+
+**Type:** Feature  
+**Prompt / request:** New MP40 weapon; model + shoot/reload anims inspired by COD comparison short (Far Cry 6 / HLL / WW2 / Vanguard).  
+**Status:** Done
+
+**Changes**
+- Full-auto SMG: 32-round mag, ~500 RPM, mag-drop reload with charge-handle rack
+- Procedural mesh (receiver, stick mag, underfold stock, charging handle)
+- FPS fire/reload/equip clips; TPS uses same deltas via existing mapper
+- Slot 6 / key `6` (`weapon6` binding)
+
+**Files touched**
+- `src/weapons/types.ts`, `definitions.ts`, `WeaponModels.tsx`, `weaponAnims.ts`, `WeaponView.tsx`
+- `src/game/keybindings.ts`
+- `src/components/Player.tsx`, `ControlsLegend.tsx`
+- `PROGRESS.md`
+
+**Notes**
+- Reference: https://www.youtube.com/shorts/zqfIZifAmDs (COD-style MP40 handling)
+
+---
+
 ### 2026-07-18 — Fix 3rd-person weapon orientation
 
 **Type:** Fix  

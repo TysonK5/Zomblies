@@ -27,7 +27,7 @@ export function Game() {
   const [locked, setLocked] = useState(false)
   const [round] = useState(1)
   const [points] = useState(500)
-  const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>('twilight')
+  const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>('day')
   const canvasEl = useRef<HTMLCanvasElement | null>(null)
 
   const onLockChange = useCallback((v: boolean) => setLocked(v), [])

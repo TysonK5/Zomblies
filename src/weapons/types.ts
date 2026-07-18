@@ -4,6 +4,8 @@ export type WeaponId =
   | 'double_barrel'
   | 'lever22'
   | 'pump_shotgun'
+  | 'mp40'
+  | 'revolver'
 
 export type WeaponKind = 'melee' | 'gun'
 
@@ -30,7 +32,7 @@ export type WeaponDef = {
   pellets?: number
   /** Radians cone half-angle-ish spread */
   spread?: number
-  /** Slot key 1–5 */
+  /** Slot key 1–7 */
   slot: number
 }
 

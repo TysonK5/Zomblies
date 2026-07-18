@@ -28,6 +28,9 @@ export type DamageableBody = {
   localToWorldPoint?: (lx: number, ly: number, lz: number) => { x: number; y: number; z: number }
   /** Transform a local direction (e.g. normal) into world space */
   localToWorldDir?: (nx: number, ny: number, nz: number) => { x: number; y: number; z: number }
+  /** Inverse of localToWorldPoint for attaching decals accurately */
+  worldToLocalPoint?: (wx: number, wy: number, wz: number) => { x: number; y: number; z: number }
+  worldToLocalDir?: (nx: number, ny: number, nz: number) => { x: number; y: number; z: number }
   applyDamage: (
     amount: number,
     limb?: LimbId,

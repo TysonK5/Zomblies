@@ -22,7 +22,7 @@ export function ControlsLegend() {
         <kbd>{k(b.jump)}</kbd> Jump
       </li>
       <li>
-        <kbd>{k(b.weapon1)}</kbd>–<kbd>{k(b.weapon5)}</kbd> Weapons
+        <kbd>{k(b.weapon1)}</kbd>–<kbd>{k(b.weapon7)}</kbd> Weapons
       </li>
       <li>
         <kbd>{k(b.fire)}</kbd> Fire / melee

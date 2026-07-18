@@ -5,7 +5,13 @@
  * Pitchfork refs: Half Sword eye-thrust shorts + Blood: Fresh Supply pitchfork kill
  * (heavy wind-up, face-line thrust, bury, rip free).
  *
- * Local space: +X right, +Y up, -Z toward aim (in front of camera).
+ * Local space: +X right, +Y up, −Z toward aim (in front of camera).
+ *
+ * Fire recoil (real-gun language):
+ *   −rx  → muzzle tips UP (positive rx tips barrels down, see reload poses)
+ *   +y   → whole gun rises
+ *   +z   → gun comes BACK toward camera (kick into the shooter)
+ *   ±rz  → slight wrist roll
  */
 
 import type { WeaponAnimPhase, WeaponId } from './types'
@@ -80,14 +86,16 @@ export function sampleClip(keys: Keyframe[], u: number): ViewPose {
 
 const IDLE_SWAY_BASE = REST
 
-/** Double barrel — hybrid scattergun / lever-action feel from the reference */
+/** Double barrel — hard tip-up + rearward punch (both barrels) */
 const DB_FIRE: Keyframe[] = [
   { t: 0, pose: REST },
-  // Sharp rearward kick + muzzle climb
-  { t: 0.08, pose: { x: 0.3, y: -0.14, z: -0.32, rx: -0.55, ry: 0.12, rz: 0.12 } },
-  { t: 0.2, pose: { x: 0.29, y: -0.2, z: -0.4, rx: -0.28, ry: 0.14, rz: 0.06 } },
-  // Settle with residual climb
-  { t: 0.45, pose: { x: 0.28, y: -0.26, z: -0.5, rx: 0.02, ry: 0.16, rz: 0.02 } },
+  // Peak: muzzle snaps up, gun drives back into camera
+  { t: 0.06, pose: { x: 0.32, y: -0.02, z: -0.22, rx: -0.95, ry: 0.1, rz: 0.16 } },
+  // Hold climb a beat
+  { t: 0.16, pose: { x: 0.31, y: -0.06, z: -0.28, rx: -0.72, ry: 0.12, rz: 0.1 } },
+  // Recover down onto target
+  { t: 0.4, pose: { x: 0.29, y: -0.2, z: -0.42, rx: -0.22, ry: 0.15, rz: 0.04 } },
+  { t: 0.65, pose: { x: 0.28, y: -0.26, z: -0.52, rx: 0.02, ry: 0.16, rz: 0.01 } },
   { t: 1, pose: REST },
 ]
 
@@ -120,10 +128,13 @@ const DB_RELOAD: Keyframe[] = [
   { t: 1, pose: REST },
 ]
 
+/** .22 lever — crisp muzzle flip, lighter than the scatterguns */
 const LEVER22_FIRE: Keyframe[] = [
   { t: 0, pose: REST },
-  { t: 0.1, pose: { x: 0.3, y: -0.2, z: -0.38, rx: -0.42, ry: 0.14, rz: 0.08 } },
-  { t: 0.3, pose: { x: 0.28, y: -0.25, z: -0.48, rx: -0.1, ry: 0.16, rz: 0.02 } },
+  { t: 0.07, pose: { x: 0.31, y: -0.08, z: -0.3, rx: -0.7, ry: 0.12, rz: 0.1 } },
+  { t: 0.18, pose: { x: 0.3, y: -0.12, z: -0.36, rx: -0.48, ry: 0.14, rz: 0.06 } },
+  { t: 0.4, pose: { x: 0.28, y: -0.22, z: -0.48, rx: -0.12, ry: 0.16, rz: 0.02 } },
+  { t: 0.7, pose: REST },
   { t: 1, pose: REST },
 ]
 
@@ -149,10 +160,13 @@ const LEVER22_RELOAD: Keyframe[] = [
   { t: 1, pose: REST },
 ]
 
+/** Pump — heavy stock push-back + tall muzzle climb */
 const PUMP_FIRE: Keyframe[] = [
   { t: 0, pose: REST },
-  { t: 0.08, pose: { x: 0.3, y: -0.16, z: -0.3, rx: -0.65, ry: 0.12, rz: 0.1 } },
-  { t: 0.25, pose: { x: 0.29, y: -0.22, z: -0.42, rx: -0.25, ry: 0.14, rz: 0.04 } },
+  { t: 0.06, pose: { x: 0.32, y: 0.0, z: -0.2, rx: -1.05, ry: 0.1, rz: 0.14 } },
+  { t: 0.15, pose: { x: 0.31, y: -0.05, z: -0.26, rx: -0.82, ry: 0.12, rz: 0.1 } },
+  { t: 0.35, pose: { x: 0.29, y: -0.18, z: -0.4, rx: -0.28, ry: 0.14, rz: 0.04 } },
+  { t: 0.6, pose: { x: 0.28, y: -0.26, z: -0.52, rx: 0.0, ry: 0.16, rz: 0.01 } },
   { t: 1, pose: REST },
 ]
 
@@ -262,6 +276,182 @@ const EQUIP: Keyframe[] = [
   { t: 1, pose: REST },
 ]
 
+/**
+ * MP40 — COD WW2 / Vanguard–style SMG hold (from comparison short).
+ * Compact stock-folded aim; short full-auto kick; mag-drop + charge-handle reload.
+ */
+const MP40_REST: ViewPose = {
+  x: 0.26,
+  y: -0.26,
+  z: -0.52,
+  rx: 0.08,
+  ry: 0.12,
+  rz: 0.02,
+}
+
+/**
+ * Full-auto cyclic kick — each shot tips muzzle up and drives gun back;
+ * short so hold-fire can re-trigger while still reading as climb.
+ */
+const MP40_FIRE: Keyframe[] = [
+  { t: 0, pose: MP40_REST },
+  {
+    t: 0.1,
+    pose: { x: 0.28, y: -0.1, z: -0.34, rx: -0.42, ry: 0.1, rz: 0.1 },
+  },
+  {
+    t: 0.28,
+    pose: { x: 0.27, y: -0.16, z: -0.42, rx: -0.2, ry: 0.12, rz: 0.05 },
+  },
+  { t: 0.55, pose: MP40_REST },
+  { t: 1, pose: MP40_REST },
+]
+
+/**
+ * Mag-drop reload: tilt → drop stick mag → insert → rack charging handle → snap aim.
+ * Beats match typical COD SMG reload timing language.
+ */
+const MP40_RELOAD: Keyframe[] = [
+  { t: 0, pose: MP40_REST },
+  // Bring gun in / tip for mag access
+  {
+    t: 0.1,
+    pose: { x: 0.2, y: -0.34, z: -0.48, rx: 0.35, ry: 0.18, rz: 0.22 },
+  },
+  // Mag drop — dip + roll so left hand can strip the stick
+  {
+    t: 0.22,
+    pose: { x: 0.16, y: -0.42, z: -0.42, rx: 0.55, ry: 0.28, rz: 0.42 },
+  },
+  // Hold open while “grabbing” fresh mag
+  {
+    t: 0.38,
+    pose: { x: 0.14, y: -0.46, z: -0.4, rx: 0.62, ry: 0.32, rz: 0.48 },
+  },
+  // Seat magazine — push up into well
+  {
+    t: 0.55,
+    pose: { x: 0.18, y: -0.4, z: -0.44, rx: 0.48, ry: 0.2, rz: 0.28 },
+  },
+  // Charge handle pull (bolt rack) — gun tips up slightly, roll opposite
+  {
+    t: 0.7,
+    pose: { x: 0.24, y: -0.3, z: -0.46, rx: 0.15, ry: -0.05, rz: -0.25 },
+  },
+  {
+    t: 0.82,
+    pose: { x: 0.22, y: -0.32, z: -0.44, rx: 0.22, ry: -0.08, rz: -0.32 },
+  },
+  // Release bolt / snap to ready
+  {
+    t: 0.92,
+    pose: { x: 0.28, y: -0.22, z: -0.5, rx: -0.06, ry: 0.14, rz: 0.06 },
+  },
+  { t: 1, pose: MP40_REST },
+]
+
+const MP40_EQUIP: Keyframe[] = [
+  { t: 0, pose: { x: 0.32, y: -0.7, z: -0.32, rx: 0.7, ry: 0.22, rz: 0.25 } },
+  { t: 0.4, pose: { x: 0.28, y: -0.34, z: -0.48, rx: 0.2, ry: 0.14, rz: 0.08 } },
+  { t: 0.75, pose: { x: 0.26, y: -0.26, z: -0.52, rx: 0.1, ry: 0.12, rz: 0.03 } },
+  { t: 1, pose: MP40_REST },
+]
+
+/**
+ * Revolver — UE5 FPS first-person pack language
+ * (https://www.youtube.com/watch?v=6kYep7sWK88):
+ * strong single-shot kick, wrist-heavy settle, cylinder-swing reload.
+ */
+const REV_REST: ViewPose = {
+  x: 0.3,
+  y: -0.24,
+  z: -0.5,
+  rx: 0.06,
+  ry: 0.14,
+  rz: 0.02,
+}
+
+/**
+ * Revolver SA kick — wrist flips muzzle high, whole gun drives back and up,
+ * then slow settle for hammer cycle (UE5 FPS pack language).
+ */
+const REV_FIRE: Keyframe[] = [
+  { t: 0, pose: REV_REST },
+  // Peak flip: barrel tips hard up, grip kicks back into camera
+  {
+    t: 0.06,
+    pose: { x: 0.36, y: 0.06, z: -0.18, rx: -1.15, ry: 0.06, rz: 0.22 },
+  },
+  {
+    t: 0.16,
+    pose: { x: 0.34, y: 0.0, z: -0.24, rx: -0.88, ry: 0.1, rz: 0.14 },
+  },
+  // Slow recover while “hammer” cycles
+  {
+    t: 0.4,
+    pose: { x: 0.31, y: -0.14, z: -0.38, rx: -0.28, ry: 0.13, rz: 0.06 },
+  },
+  {
+    t: 0.65,
+    pose: { x: 0.3, y: -0.22, z: -0.48, rx: -0.02, ry: 0.14, rz: 0.02 },
+  },
+  { t: 1, pose: REV_REST },
+]
+
+/**
+ * Cylinder reload: tip → swing open → dump → load → snap shut → ready.
+ * Matches UE5 revolver pack beat structure (wrist flips + open cylinder).
+ */
+const REV_RELOAD: Keyframe[] = [
+  { t: 0, pose: REV_REST },
+  // Bring in / tilt for cylinder latch
+  {
+    t: 0.08,
+    pose: { x: 0.22, y: -0.32, z: -0.46, rx: 0.28, ry: 0.22, rz: 0.35 },
+  },
+  // Swing cylinder open (strong roll + yaw)
+  {
+    t: 0.2,
+    pose: { x: 0.14, y: -0.38, z: -0.4, rx: 0.55, ry: 0.45, rz: 0.85 },
+  },
+  // Hold open — eject empties (slight shake down)
+  {
+    t: 0.35,
+    pose: { x: 0.12, y: -0.44, z: -0.38, rx: 0.7, ry: 0.5, rz: 0.95 },
+  },
+  {
+    t: 0.45,
+    pose: { x: 0.12, y: -0.46, z: -0.36, rx: 0.75, ry: 0.52, rz: 1.0 },
+  },
+  // Load speedloader / cartridges
+  {
+    t: 0.58,
+    pose: { x: 0.16, y: -0.4, z: -0.4, rx: 0.55, ry: 0.4, rz: 0.75 },
+  },
+  {
+    t: 0.7,
+    pose: { x: 0.18, y: -0.36, z: -0.42, rx: 0.4, ry: 0.28, rz: 0.5 },
+  },
+  // Snap cylinder closed (opposite roll)
+  {
+    t: 0.82,
+    pose: { x: 0.28, y: -0.22, z: -0.46, rx: -0.05, ry: 0.05, rz: -0.15 },
+  },
+  // Hammer cock / settle to aim
+  {
+    t: 0.92,
+    pose: { x: 0.32, y: -0.2, z: -0.48, rx: -0.1, ry: 0.16, rz: 0.06 },
+  },
+  { t: 1, pose: REV_REST },
+]
+
+const REV_EQUIP: Keyframe[] = [
+  { t: 0, pose: { x: 0.38, y: -0.72, z: -0.28, rx: 0.85, ry: 0.25, rz: 0.35 } },
+  { t: 0.35, pose: { x: 0.32, y: -0.36, z: -0.44, rx: 0.28, ry: 0.16, rz: 0.1 } },
+  { t: 0.7, pose: { x: 0.3, y: -0.24, z: -0.5, rx: 0.08, ry: 0.14, rz: 0.03 } },
+  { t: 1, pose: REV_REST },
+]
+
 type ClipMap = Partial<Record<WeaponClipId, Keyframe[]>>
 
 const CLIPS: Record<WeaponId, ClipMap> = {
@@ -298,6 +488,18 @@ const CLIPS: Record<WeaponId, ClipMap> = {
     reload: PUMP_RELOAD,
     equip: EQUIP,
   },
+  mp40: {
+    idle: [{ t: 0, pose: MP40_REST }],
+    fire: MP40_FIRE,
+    reload: MP40_RELOAD,
+    equip: MP40_EQUIP,
+  },
+  revolver: {
+    idle: [{ t: 0, pose: REV_REST }],
+    fire: REV_FIRE,
+    reload: REV_RELOAD,
+    equip: REV_EQUIP,
+  },
 }
 
 /** Map runtime phase → clip id */
@@ -321,9 +523,14 @@ export const CLIP_DURATION: Record<WeaponId, Partial<Record<WeaponClipId, number
   fist: { melee: 0.42, fire: 0.42, equip: 0.35 },
   // Pull-in → stab-forward (tips stay on crosshair line)
   pitchfork: { melee: 0.62, fire: 0.62, equip: 0.42 },
-  double_barrel: { fire: 0.42, lever: 0.55, reload: 1.85, equip: 0.45 },
-  lever22: { fire: 0.32, lever: 0.5, reload: 2.1, equip: 0.4 },
-  pump_shotgun: { fire: 0.4, pump: 0.52, reload: 0.65, equip: 0.4 },
+  // Fire clips long enough to read muzzle-up kick before lever/pump
+  double_barrel: { fire: 0.48, lever: 0.55, reload: 1.85, equip: 0.45 },
+  lever22: { fire: 0.38, lever: 0.5, reload: 2.1, equip: 0.4 },
+  pump_shotgun: { fire: 0.48, pump: 0.52, reload: 0.65, equip: 0.4 },
+  // Short fire so full-auto kick can re-trigger each shot; mag-drop reload
+  mp40: { fire: 0.13, reload: 2.35, equip: 0.42 },
+  // Heavy kick + settle; cylinder-swing reload
+  revolver: { fire: 0.55, reload: 2.8, equip: 0.45 },
 }
 
 export function getClipDuration(weaponId: WeaponId, clip: WeaponClipId, fallback: number): number {
@@ -418,6 +625,22 @@ export function sampleThirdPersonWeaponPose(
     armLX = -1.32
     armLY = -0.04
     armLZ = 0.16
+  } else if (weaponId === 'mp40') {
+    // Compact SMG hold — arms a bit tighter / closer to body
+    armRX = -1.4
+    armRY = 0.14
+    armRZ = -0.32
+    armLX = -1.28
+    armLY = -0.1
+    armLZ = 0.38
+  } else if (weaponId === 'revolver') {
+    // Mostly one-handed pistol stance; support hand light on frame
+    armRX = -1.28
+    armRY = 0.22
+    armRZ = -0.38
+    armLX = -0.95
+    armLY = -0.05
+    armLZ = 0.28
   } else if (weaponId === 'fist') {
     armRX = 0.12
     armRY = 0
@@ -456,14 +679,27 @@ export function sampleThirdPersonWeaponPose(
       armRX += walkSwing * 0.08
       armLX -= walkSwing * 0.08
     }
+  } else if (weaponId === 'revolver') {
+    // Heavy one-hand kick — right arm flips muzzle up hard
+    // FPS −rx (climb) + +dy (rise) + +dz (back) → stronger arm pitch
+    armRX += drx * 1.45 - dy * 1.2 - dz * 0.55
+    armLX += drx * 0.5 - dy * 0.4 - dz * 0.22
+    armRZ += drz * 1.0 + dry * 0.55
+    armLZ += -drz * 0.35 + dry * 0.25
+    armRY += dx * 0.45 + dry * 0.25
+    armLY += dx * 0.15
+    if (phase === 'idle') {
+      armRX += walkSwing * 0.06
+      armLX -= walkSwing * 0.12
+    }
   } else {
-    // Guns: two-hand aim — kick raises muzzle (FPS −rx), lever/reload tip down (+rx)
-    // Shoulder pitch: FPS −rx (muzzle climb) → arm a bit higher (−x)
-    armRX += drx * 0.85 - dy * 0.7 - dz * 0.35
-    armLX += drx * 0.7 - dy * 0.55 - dz * 0.3
+    // Guns: two-hand aim — FPS −rx = muzzle climb, +y rise, +z kick-back
+    // Map climb strongly onto shoulders so TPS reads tip-up like FPS
+    armRX += drx * 1.25 - dy * 1.0 - dz * 0.5
+    armLX += drx * 1.05 - dy * 0.85 - dz * 0.4
     // Roll / yaw from FPS → shoulder twist
-    armRZ += drz * 0.75 + dry * 0.4
-    armLZ += -drz * 0.45 + dry * 0.3
+    armRZ += drz * 0.85 + dry * 0.45
+    armLZ += -drz * 0.5 + dry * 0.35
     armRY += dx * 0.35 + dry * 0.2
     armLY += dx * 0.2
     // Left hand rides forend — slightly more forward than right
@@ -475,18 +711,15 @@ export function sampleThirdPersonWeaponPose(
   }
 
   // Weapon deltas in hand socket (world model already points barrel along arm −Y).
-  // FPS −rx = muzzle climb → tip weapon up relative to arm (positive local pitch
-  // after world orient is non-obvious; use rx matching FPS kick sign on socket).
-  // Socket local: after identity, anim rotates the pre-oriented gun.
+  // Amplify pitch so the held mesh tips up/back with the arm on fire.
   const weapon = {
     x: dx * 0.1,
-    // Along arm: −y is toward fingers / muzzle side of hand offset
-    y: dy * 0.08 - dz * 0.06,
+    y: dy * 0.12 - dz * 0.1,
     z: dx * 0.04,
-    // Match FPS pitch language so kick / lever read the same
-    rx: drx * 0.9,
+    // FPS −rx climb → socket pitch (scaled up so TPS gun flips clearly)
+    rx: drx * 1.15,
     ry: dry * 0.75,
-    rz: drz * 0.85,
+    rz: drz * 0.9,
   }
 
   return {

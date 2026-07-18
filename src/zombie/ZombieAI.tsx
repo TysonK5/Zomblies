@@ -142,6 +142,31 @@ export function ZombieAI({
           z: -nx * s + nz * c,
         }
       },
+      worldToLocalPoint: (wx: number, wy: number, wz: number) => {
+        const g = root.current
+        if (g) {
+          _lp.set(wx, wy, wz)
+          g.worldToLocal(_lp)
+          return { x: _lp.x, y: _lp.y, z: _lp.z }
+        }
+        const dx = wx - pos.current.x
+        const dy = wy - pos.current.y
+        const dz = wz - pos.current.z
+        const c = Math.cos(-yaw.current)
+        const s = Math.sin(-yaw.current)
+        return { x: dx * c - dz * s, y: dy, z: dx * s + dz * c }
+      },
+      worldToLocalDir: (nx: number, ny: number, nz: number) => {
+        const g = root.current
+        if (g) {
+          const inv = g.matrixWorld.clone().invert()
+          _ld.set(nx, ny, nz).transformDirection(inv)
+          return { x: _ld.x, y: _ld.y, z: _ld.z }
+        }
+        const c = Math.cos(-yaw.current)
+        const s = Math.sin(-yaw.current)
+        return { x: nx * c - nz * s, y: ny, z: nx * s + nz * c }
+      },
       applyDamage: (amount: number, limb?: LimbId, hitPoint?: { x: number; y: number; z: number }) => {
         if (dead.current) {
           return { killed: false, hp: 0, hpDamage: 0, limbs: limbsRef.current }
@@ -217,12 +242,21 @@ export function ZombieAI({
           }
 
           if (hitPoint) {
+            // Extra wound layer on the stump when a limb is blown off
             spawnHitMarker({
               x: hitPoint.x,
               y: hitPoint.y,
               z: hitPoint.z,
-              surface: 'flesh',
-              scale: 0.2,
+              surface: 'bullet_hole',
+              scale: 0.12,
+              attachId: bodyId,
+            })
+            spawnHitMarker({
+              x: hitPoint.x,
+              y: hitPoint.y,
+              z: hitPoint.z,
+              surface: 'blood_splat',
+              scale: 0.22,
               attachId: bodyId,
             })
           }
