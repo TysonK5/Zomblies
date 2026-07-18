@@ -113,6 +113,27 @@ README.md                 # Quick start
 
 ## Changelog
 
+### 2026-07-18 — Pushed project to GitHub
+
+**Type:** Chore  
+**Prompt / request:** Add this to GitHub repo https://github.com/TysonK5/Zomblies.git  
+**Status:** Done
+
+**Changes**
+- Initialized git (`main`)
+- Initial commit of source (node_modules/dist ignored)
+- Remote `origin` → `https://github.com/TysonK5/Zomblies.git`
+- Pushed `main` to GitHub
+
+**Files touched**
+- `.git/` (repo metadata)
+- `PROGRESS.md`
+
+**Notes**
+- Repo URL: https://github.com/TysonK5/Zomblies
+
+---
+
 ### 2026-07-18 — Empty fire auto-reloads when reserve remains
 
 **Type:** Fix  
