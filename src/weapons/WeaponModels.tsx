@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
 import type { WeaponId } from './types'
+import { SoftBoxGeometry } from '../geometry/SoftBoxGeometry'
 
 function useMat(color: string, opts?: { roughness?: number; metalness?: number }) {
   return useMemo(
@@ -53,7 +54,16 @@ export function WeaponModel({ id, variant = 'fps' }: WeaponModelProps) {
   }
 
   // FPS: model sits in local space; WeaponView places the whole group on camera.
-  // Centered slightly so hands + gun fill lower view.
+  // Pump: slightly low for ejection-port read, but nearly level (no upward aim bias).
+  if (id === 'pump_shotgun') {
+    return (
+      <group position={[0.02, -0.04, 0.02]} rotation={[0.0, 0.05, 0.01]} scale={1.05} frustumCulled={false}>
+        {mesh}
+        <FpsHands id={id} />
+      </group>
+    )
+  }
+
   return (
     <group position={[0, 0, 0]} rotation={[0.05, 0.08, 0]} scale={1.0} frustumCulled={false}>
       {mesh}
@@ -72,32 +82,157 @@ function WeaponMesh({ id }: { id: WeaponId }) {
   return <PumpShotgunMesh />
 }
 
+/**
+ * Full FPS arm chain: hand → forearm → upper arm → shoulder.
+ * Arms run toward +Z (camera / player) and drop down so they leave the FOV
+ * at the bottom like a real body — not floating disconnected hands.
+ */
+function FpsArm({
+  side,
+  position,
+  rotation = [0, 0, 0],
+  skin,
+  sleeve,
+  fist = false,
+  /** scale forearm/upper length (pitchfork needs longer shaft reach) */
+  length = 1,
+}: {
+  side: 'L' | 'R'
+  position: [number, number, number]
+  rotation?: [number, number, number]
+  skin: THREE.Material
+  sleeve: THREE.Material
+  fist?: boolean
+  length?: number
+}) {
+  const s = side === 'R' ? 1 : -1
+  const hand = fist
+    ? { w: 0.15, h: 0.15, d: 0.18 }
+    : { w: 0.1, h: 0.11, d: 0.12 }
+  const L = length
+
+  return (
+    <group position={position} rotation={rotation} frustumCulled={false}>
+      {/* Hand / fist */}
+      <mesh material={skin} castShadow frustumCulled={false}>
+        <SoftBoxGeometry args={[hand.w, hand.h, hand.d]} />
+      </mesh>
+      {fist && (
+        <mesh position={[0, 0.09, 0.02]} material={skin} frustumCulled={false}>
+          <SoftBoxGeometry args={[0.13, 0.07, 0.12]} />
+        </mesh>
+      )}
+      {/* Knuckles / fingers tip toward barrel slightly */}
+      {!fist && (
+        <mesh position={[0, -0.01, -0.06]} material={skin} frustumCulled={false}>
+          <SoftBoxGeometry args={[hand.w * 0.9, hand.h * 0.55, 0.06]} />
+        </mesh>
+      )}
+
+      {/* Wrist cuff (sleeve start) */}
+      <mesh position={[0, 0.01, 0.07]} material={sleeve} frustumCulled={false}>
+        <SoftBoxGeometry args={[hand.w * 1.05, hand.h * 1.05, 0.07]} />
+      </mesh>
+
+      {/* Forearm — solid connection back toward body (+Z) */}
+      <mesh
+        position={[0.008 * s, -0.015, 0.1 + 0.12 * L]}
+        material={sleeve}
+        frustumCulled={false}
+      >
+        <SoftBoxGeometry args={[0.1, 0.1, 0.24 * L]} />
+      </mesh>
+
+      {/* Elbow mass */}
+      <mesh
+        position={[0.015 * s, -0.03, 0.1 + 0.24 * L]}
+        material={sleeve}
+        frustumCulled={false}
+      >
+        <SoftBoxGeometry args={[0.11, 0.11, 0.09]} />
+      </mesh>
+
+      {/*
+        Upper arm: pitch down so the limb exits the bottom of the FOV
+        (reads as attached to shoulders / torso, not hovering mid-air).
+      */}
+      <group
+        position={[0.02 * s, -0.04, 0.12 + 0.26 * L]}
+        rotation={[0.55, 0.06 * s, 0.18 * s]}
+      >
+        <mesh position={[0, -0.02, 0.14]} material={sleeve} frustumCulled={false}>
+          <SoftBoxGeometry args={[0.12, 0.13, 0.3]} />
+        </mesh>
+        {/* Deltoid / shoulder — fattens into body */}
+        <mesh position={[0.02 * s, -0.05, 0.3]} material={sleeve} frustumCulled={false}>
+          <SoftBoxGeometry args={[0.17, 0.16, 0.16]} />
+        </mesh>
+      </group>
+    </group>
+  )
+}
+
+/**
+ * Chest / collar stub near the camera (+Z) so both arms meet a body mass
+ * at the bottom of the FOV. Kept low so it fills the lower third without
+ * covering the weapon.
+ */
+function FpsTorsoStub({
+  sleeve,
+  /** push further toward camera for long weapons (pitchfork) */
+  z = 0.72,
+}: {
+  sleeve: THREE.Material
+  z?: number
+}) {
+  return (
+    <group position={[0, -0.36, z]} frustumCulled={false}>
+      {/* Upper chest — sits under the view, behind the arms */}
+      <mesh material={sleeve} frustumCulled={false}>
+        <SoftBoxGeometry args={[0.5, 0.28, 0.24]} />
+      </mesh>
+      {/* Collar / neck base (barely in frame) */}
+      <mesh position={[0, 0.14, -0.02]} material={sleeve} frustumCulled={false}>
+        <SoftBoxGeometry args={[0.22, 0.1, 0.14]} />
+      </mesh>
+      {/* Shoulder caps linking arm roots into the torso */}
+      <mesh position={[0.22, 0.06, 0.02]} material={sleeve} frustumCulled={false}>
+        <SoftBoxGeometry args={[0.18, 0.15, 0.16]} />
+      </mesh>
+      <mesh position={[-0.22, 0.06, 0.02]} material={sleeve} frustumCulled={false}>
+        <SoftBoxGeometry args={[0.18, 0.15, 0.16]} />
+      </mesh>
+    </group>
+  )
+}
+
 function FpsHands({ id }: { id: WeaponId }) {
-  const skin = useMat('#d4a574', { roughness: 0.85, metalness: 0 })
-  const sleeve = useMat('#2f4a6e', { roughness: 0.9, metalness: 0 })
+  // Match third-person survivor colors so FPS / TPS feel like the same body
+  const skin = useMat('#c9a07a', { roughness: 0.85, metalness: 0 })
+  const sleeve = useMat('#3d5a80', { roughness: 0.9, metalness: 0 })
 
   if (id === 'fist') {
     return (
       <group>
-        <group position={[0.12, -0.05, 0.05]}>
-          <mesh material={skin}>
-            <boxGeometry args={[0.16, 0.16, 0.2]} />
-          </mesh>
-          <mesh position={[0, 0.1, 0.02]} material={skin}>
-            <boxGeometry args={[0.14, 0.08, 0.14]} />
-          </mesh>
-          <mesh position={[0, 0.02, 0.18]} material={sleeve}>
-            <boxGeometry args={[0.17, 0.17, 0.14]} />
-          </mesh>
-        </group>
-        <group position={[-0.14, -0.08, 0.12]}>
-          <mesh material={skin}>
-            <boxGeometry args={[0.14, 0.14, 0.18]} />
-          </mesh>
-          <mesh position={[0, 0.02, 0.16]} material={sleeve}>
-            <boxGeometry args={[0.15, 0.15, 0.12]} />
-          </mesh>
-        </group>
+        <FpsTorsoStub sleeve={sleeve} z={0.7} />
+        <FpsArm
+          side="R"
+          position={[0.14, -0.06, 0.08]}
+          rotation={[0.15, 0.05, 0.12]}
+          skin={skin}
+          sleeve={sleeve}
+          fist
+          length={0.95}
+        />
+        <FpsArm
+          side="L"
+          position={[-0.14, -0.08, 0.14]}
+          rotation={[0.2, -0.04, -0.1]}
+          skin={skin}
+          sleeve={sleeve}
+          fist
+          length={0.95}
+        />
       </group>
     )
   }
@@ -106,92 +241,123 @@ function FpsHands({ id }: { id: WeaponId }) {
   if (id === 'pitchfork') {
     return (
       <group>
-        <group position={[0.06, -0.05, 0.95]} rotation={[0.15, 0, 0.08]}>
-          <mesh material={skin}>
-            <boxGeometry args={[0.11, 0.12, 0.13]} />
-          </mesh>
-          <mesh position={[0, 0.02, 0.1]} material={sleeve}>
-            <boxGeometry args={[0.12, 0.12, 0.14]} />
-          </mesh>
-        </group>
-        <group position={[-0.05, -0.04, 0.72]} rotation={[0.12, 0, -0.06]}>
-          <mesh material={skin}>
-            <boxGeometry args={[0.1, 0.11, 0.12]} />
-          </mesh>
-          <mesh position={[0, 0.02, 0.09]} material={sleeve}>
-            <boxGeometry args={[0.11, 0.11, 0.12]} />
-          </mesh>
-        </group>
+        {/* Hands sit far +Z on the shaft — body mass sits further toward camera */}
+        <FpsTorsoStub sleeve={sleeve} z={1.25} />
+        <FpsArm
+          side="R"
+          position={[0.06, -0.05, 0.95]}
+          rotation={[0.15, 0, 0.08]}
+          skin={skin}
+          sleeve={sleeve}
+          length={1.05}
+        />
+        <FpsArm
+          side="L"
+          position={[-0.05, -0.04, 0.72]}
+          rotation={[0.12, 0, -0.06]}
+          skin={skin}
+          sleeve={sleeve}
+          length={1.0}
+        />
       </group>
     )
   }
 
-  // MP40: right on pistol grip, left on underfold / mag well (COD SMG hold)
+  // MP40: right on pistol grip, left on underfold / mag well
   if (id === 'mp40') {
     return (
       <group>
-        <group position={[0.05, -0.1, 0.12]} rotation={[0.35, 0.05, 0.12]}>
-          <mesh material={skin}>
-            <boxGeometry args={[0.11, 0.12, 0.13]} />
-          </mesh>
-          <mesh position={[0, 0.02, 0.11]} material={sleeve}>
-            <boxGeometry args={[0.12, 0.12, 0.14]} />
-          </mesh>
-        </group>
-        <group position={[-0.03, -0.08, -0.08]} rotation={[0.28, -0.05, -0.1]}>
-          <mesh material={skin}>
-            <boxGeometry args={[0.1, 0.11, 0.12]} />
-          </mesh>
-          <mesh position={[0, 0.02, 0.1]} material={sleeve}>
-            <boxGeometry args={[0.11, 0.11, 0.12]} />
-          </mesh>
-        </group>
+        <FpsTorsoStub sleeve={sleeve} />
+        <FpsArm
+          side="R"
+          position={[0.05, -0.1, 0.12]}
+          rotation={[0.35, 0.05, 0.12]}
+          skin={skin}
+          sleeve={sleeve}
+          length={1}
+        />
+        <FpsArm
+          side="L"
+          position={[-0.03, -0.08, -0.08]}
+          rotation={[0.28, -0.05, -0.1]}
+          skin={skin}
+          sleeve={sleeve}
+          length={0.95}
+        />
       </group>
     )
   }
 
-  // Revolver: right on grip, left lightly on frame / under cylinder (UE5 FPS hold)
+  // Combat pump: right on grip, left on forend
+  if (id === 'pump_shotgun') {
+    return (
+      <group>
+        <FpsTorsoStub sleeve={sleeve} />
+        <FpsArm
+          side="R"
+          position={[0.05, -0.1, 0.14]}
+          rotation={[0.4, 0.06, 0.12]}
+          skin={skin}
+          sleeve={sleeve}
+          length={1}
+        />
+        <FpsArm
+          side="L"
+          position={[-0.02, -0.08, -0.22]}
+          rotation={[0.2, -0.04, -0.08]}
+          skin={skin}
+          sleeve={sleeve}
+          length={0.95}
+        />
+      </group>
+    )
+  }
+
+  // Revolver: right on grip, left on frame
   if (id === 'revolver') {
     return (
       <group>
-        <group position={[0.06, -0.12, 0.1]} rotation={[0.4, 0.08, 0.14]}>
-          <mesh material={skin}>
-            <boxGeometry args={[0.11, 0.12, 0.13]} />
-          </mesh>
-          <mesh position={[0, 0.02, 0.1]} material={sleeve}>
-            <boxGeometry args={[0.12, 0.12, 0.13]} />
-          </mesh>
-        </group>
-        <group position={[-0.04, -0.06, -0.02]} rotation={[0.22, -0.08, -0.12]}>
-          <mesh material={skin}>
-            <boxGeometry args={[0.09, 0.1, 0.11]} />
-          </mesh>
-          <mesh position={[0, 0.02, 0.09]} material={sleeve}>
-            <boxGeometry args={[0.1, 0.1, 0.11]} />
-          </mesh>
-        </group>
+        <FpsTorsoStub sleeve={sleeve} />
+        <FpsArm
+          side="R"
+          position={[0.06, -0.12, 0.1]}
+          rotation={[0.4, 0.08, 0.14]}
+          skin={skin}
+          sleeve={sleeve}
+          length={1}
+        />
+        <FpsArm
+          side="L"
+          position={[-0.04, -0.06, -0.02]}
+          rotation={[0.22, -0.08, -0.12]}
+          skin={skin}
+          sleeve={sleeve}
+          length={0.9}
+        />
       </group>
     )
   }
 
+  // Default two-hand hold (double barrel / lever22 / etc.)
   return (
     <group>
-      <group position={[0.04, -0.08, 0.1]} rotation={[0.25, 0, 0.1]}>
-        <mesh material={skin}>
-          <boxGeometry args={[0.12, 0.13, 0.14]} />
-        </mesh>
-        <mesh position={[0, 0.02, 0.12]} material={sleeve}>
-          <boxGeometry args={[0.13, 0.13, 0.16]} />
-        </mesh>
-      </group>
-      <group position={[-0.02, -0.07, -0.2]} rotation={[0.2, 0, -0.08]}>
-        <mesh material={skin}>
-          <boxGeometry args={[0.11, 0.12, 0.13]} />
-        </mesh>
-        <mesh position={[0, 0.02, 0.11]} material={sleeve}>
-          <boxGeometry args={[0.12, 0.12, 0.14]} />
-        </mesh>
-      </group>
+      <FpsTorsoStub sleeve={sleeve} />
+      <FpsArm
+        side="R"
+        position={[0.04, -0.08, 0.1]}
+        rotation={[0.25, 0, 0.1]}
+        skin={skin}
+        sleeve={sleeve}
+        length={1}
+      />
+      <FpsArm
+        side="L"
+        position={[-0.02, -0.07, -0.2]}
+        rotation={[0.2, 0, -0.08]}
+        skin={skin}
+        sleeve={sleeve}
+        length={0.95}
+      />
     </group>
   )
 }
@@ -211,15 +377,15 @@ function Mp40Mesh() {
     <group>
       {/* Receiver */}
       <mesh position={[0, 0.04, -0.08]} material={metal} castShadow>
-        <boxGeometry args={[0.09, 0.1, 0.42]} />
+        <SoftBoxGeometry args={[0.09, 0.1, 0.42]} />
       </mesh>
       {/* Top cover / cocking tube */}
       <mesh position={[0, 0.1, -0.12]} material={dark} castShadow>
-        <boxGeometry args={[0.055, 0.04, 0.36]} />
+        <SoftBoxGeometry args={[0.055, 0.04, 0.36]} />
       </mesh>
       {/* Charging handle (right side — signature MP40 look) */}
       <mesh position={[0.055, 0.08, -0.02]} material={dark} castShadow>
-        <boxGeometry args={[0.04, 0.03, 0.06]} />
+        <SoftBoxGeometry args={[0.04, 0.03, 0.06]} />
       </mesh>
       {/* Barrel shroud */}
       <mesh position={[0, 0.05, -0.48]} rotation={[Math.PI / 2, 0, 0]} material={metal} castShadow>
@@ -231,27 +397,27 @@ function Mp40Mesh() {
       </mesh>
       {/* Front sight */}
       <mesh position={[0, 0.1, -0.62]} material={dark}>
-        <boxGeometry args={[0.02, 0.05, 0.02]} />
+        <SoftBoxGeometry args={[0.02, 0.05, 0.02]} />
       </mesh>
       {/* Rear sight block */}
       <mesh position={[0, 0.11, 0.06]} material={dark}>
-        <boxGeometry args={[0.04, 0.035, 0.04]} />
+        <SoftBoxGeometry args={[0.04, 0.035, 0.04]} />
       </mesh>
       {/* Stick magazine well */}
       <mesh position={[0, -0.04, -0.06]} material={metal} castShadow>
-        <boxGeometry args={[0.07, 0.08, 0.1]} />
+        <SoftBoxGeometry args={[0.07, 0.08, 0.1]} />
       </mesh>
       {/* Stick magazine */}
       <mesh position={[0, -0.18, -0.04]} rotation={[0.12, 0, 0]} material={bakelite} castShadow>
-        <boxGeometry args={[0.055, 0.22, 0.07]} />
+        <SoftBoxGeometry args={[0.055, 0.22, 0.07]} />
       </mesh>
       {/* Mag base plate */}
       <mesh position={[0, -0.3, -0.02]} rotation={[0.12, 0, 0]} material={dark}>
-        <boxGeometry args={[0.06, 0.03, 0.08]} />
+        <SoftBoxGeometry args={[0.06, 0.03, 0.08]} />
       </mesh>
       {/* Pistol grip */}
       <mesh position={[0, -0.1, 0.12]} rotation={[0.35, 0, 0]} material={bakelite} castShadow>
-        <boxGeometry args={[0.055, 0.16, 0.07]} />
+        <SoftBoxGeometry args={[0.055, 0.16, 0.07]} />
       </mesh>
       {/* Trigger guard */}
       <mesh position={[0, -0.04, 0.06]} material={metal}>
@@ -259,15 +425,15 @@ function Mp40Mesh() {
       </mesh>
       {/* Underfold stock — folded under (classic compact MP40) */}
       <mesh position={[0, -0.02, 0.28]} material={metal} castShadow>
-        <boxGeometry args={[0.06, 0.04, 0.28]} />
+        <SoftBoxGeometry args={[0.06, 0.04, 0.28]} />
       </mesh>
       {/* Stock hinge */}
       <mesh position={[0, 0.0, 0.14]} material={dark}>
-        <boxGeometry args={[0.07, 0.06, 0.05]} />
+        <SoftBoxGeometry args={[0.07, 0.06, 0.05]} />
       </mesh>
       {/* Butt plate (folded tip) */}
       <mesh position={[0, -0.04, 0.42]} material={wood} castShadow>
-        <boxGeometry args={[0.08, 0.1, 0.03]} />
+        <SoftBoxGeometry args={[0.08, 0.1, 0.03]} />
       </mesh>
     </group>
   )
@@ -287,11 +453,11 @@ function RevolverMesh() {
     <group>
       {/* Frame */}
       <mesh position={[0, 0.02, 0.02]} material={metal} castShadow>
-        <boxGeometry args={[0.07, 0.1, 0.22]} />
+        <SoftBoxGeometry args={[0.07, 0.1, 0.22]} />
       </mesh>
       {/* Top strap */}
       <mesh position={[0, 0.08, -0.02]} material={dark} castShadow>
-        <boxGeometry args={[0.05, 0.035, 0.18]} />
+        <SoftBoxGeometry args={[0.05, 0.035, 0.18]} />
       </mesh>
       {/* Cylinder (signature mass) */}
       <mesh position={[0, 0.02, -0.06]} rotation={[0, 0, Math.PI / 2]} material={metal} castShadow>
@@ -299,7 +465,7 @@ function RevolverMesh() {
       </mesh>
       {/* Cylinder flutes hint */}
       <mesh position={[0.05, 0.02, -0.06]} material={dark}>
-        <boxGeometry args={[0.02, 0.09, 0.09]} />
+        <SoftBoxGeometry args={[0.02, 0.09, 0.09]} />
       </mesh>
       {/* Barrel */}
       <mesh position={[0, 0.04, -0.32]} rotation={[Math.PI / 2, 0, 0]} material={metal} castShadow>
@@ -307,7 +473,7 @@ function RevolverMesh() {
       </mesh>
       {/* Underlug / ejector shroud */}
       <mesh position={[0, -0.01, -0.22]} material={dark} castShadow>
-        <boxGeometry args={[0.035, 0.04, 0.22]} />
+        <SoftBoxGeometry args={[0.035, 0.04, 0.22]} />
       </mesh>
       {/* Muzzle crown */}
       <mesh position={[0, 0.04, -0.52]} rotation={[Math.PI / 2, 0, 0]} material={dark} castShadow>
@@ -315,15 +481,15 @@ function RevolverMesh() {
       </mesh>
       {/* Front sight */}
       <mesh position={[0, 0.08, -0.48]} material={dark}>
-        <boxGeometry args={[0.015, 0.04, 0.02]} />
+        <SoftBoxGeometry args={[0.015, 0.04, 0.02]} />
       </mesh>
       {/* Rear sight notch */}
       <mesh position={[0, 0.1, 0.08]} material={dark}>
-        <boxGeometry args={[0.04, 0.025, 0.03]} />
+        <SoftBoxGeometry args={[0.04, 0.025, 0.03]} />
       </mesh>
       {/* Hammer (cocked-ready silhouette) */}
       <mesh position={[0, 0.1, 0.14]} rotation={[-0.45, 0, 0]} material={dark} castShadow>
-        <boxGeometry args={[0.025, 0.06, 0.04]} />
+        <SoftBoxGeometry args={[0.025, 0.06, 0.04]} />
       </mesh>
       {/* Trigger guard */}
       <mesh position={[0, -0.05, 0.04]} material={metal}>
@@ -331,22 +497,22 @@ function RevolverMesh() {
       </mesh>
       {/* Trigger */}
       <mesh position={[0, -0.04, 0.04]} material={brass}>
-        <boxGeometry args={[0.015, 0.035, 0.02]} />
+        <SoftBoxGeometry args={[0.015, 0.035, 0.02]} />
       </mesh>
       {/* Grip */}
       <mesh position={[0, -0.1, 0.14]} rotation={[0.4, 0, 0]} material={grip} castShadow>
-        <boxGeometry args={[0.055, 0.15, 0.08]} />
+        <SoftBoxGeometry args={[0.055, 0.15, 0.08]} />
       </mesh>
       {/* Grip panels */}
       <mesh position={[0.03, -0.1, 0.14]} rotation={[0.4, 0, 0]} material={grip}>
-        <boxGeometry args={[0.012, 0.13, 0.07]} />
+        <SoftBoxGeometry args={[0.012, 0.13, 0.07]} />
       </mesh>
       <mesh position={[-0.03, -0.1, 0.14]} rotation={[0.4, 0, 0]} material={grip}>
-        <boxGeometry args={[0.012, 0.13, 0.07]} />
+        <SoftBoxGeometry args={[0.012, 0.13, 0.07]} />
       </mesh>
       {/* Grip butt */}
       <mesh position={[0, -0.18, 0.18]} rotation={[0.4, 0, 0]} material={brass}>
-        <boxGeometry args={[0.05, 0.03, 0.07]} />
+        <SoftBoxGeometry args={[0.05, 0.03, 0.07]} />
       </mesh>
     </group>
   )
@@ -365,12 +531,12 @@ function PitchforkMesh() {
       {/* Tines — tips at z≈0 (aim point / crosshair) */}
       {([-0.1, 0, 0.1] as const).map((x) => (
         <mesh key={x} position={[x, 0, 0.14]} material={metal} castShadow>
-          <boxGeometry args={[0.032, 0.032, 0.28]} />
+          <SoftBoxGeometry args={[0.032, 0.032, 0.28]} />
         </mesh>
       ))}
       {/* Crossbar */}
       <mesh position={[0, 0, 0.3]} material={metal} castShadow>
-        <boxGeometry args={[0.3, 0.045, 0.05]} />
+        <SoftBoxGeometry args={[0.3, 0.045, 0.05]} />
       </mesh>
       {/* Shaft toward camera / hands (+Z) */}
       <mesh position={[0, 0, 0.85]} rotation={[Math.PI / 2, 0, 0]} material={wood} castShadow>
@@ -378,7 +544,7 @@ function PitchforkMesh() {
       </mesh>
       {/* Grip flare */}
       <mesh position={[0, 0, 1.35]} material={wood} castShadow>
-        <boxGeometry args={[0.05, 0.05, 0.12]} />
+        <SoftBoxGeometry args={[0.05, 0.05, 0.12]} />
       </mesh>
     </group>
   )
@@ -396,16 +562,16 @@ function DoubleBarrelMesh() {
         <cylinderGeometry args={[0.036, 0.036, 0.72, 10]} />
       </mesh>
       <mesh position={[0, 0.025, -0.02]} material={metal}>
-        <boxGeometry args={[0.14, 0.1, 0.24]} />
+        <SoftBoxGeometry args={[0.14, 0.1, 0.24]} />
       </mesh>
       <mesh position={[0, -0.02, -0.25]} material={wood}>
-        <boxGeometry args={[0.12, 0.08, 0.26]} />
+        <SoftBoxGeometry args={[0.12, 0.08, 0.26]} />
       </mesh>
       <mesh position={[0, -0.02, 0.18]} material={wood}>
-        <boxGeometry args={[0.1, 0.12, 0.32]} />
+        <SoftBoxGeometry args={[0.1, 0.12, 0.32]} />
       </mesh>
       <mesh position={[0, -0.08, 0.34]} material={wood}>
-        <boxGeometry args={[0.12, 0.14, 0.14]} />
+        <SoftBoxGeometry args={[0.12, 0.14, 0.14]} />
       </mesh>
       <mesh position={[0, -0.06, 0.02]} material={metal}>
         <torusGeometry args={[0.045, 0.01, 6, 14, Math.PI]} />
@@ -427,49 +593,127 @@ function Lever22Mesh() {
         <cylinderGeometry args={[0.018, 0.018, 0.5, 8]} />
       </mesh>
       <mesh position={[0, 0.02, -0.02]} material={metal}>
-        <boxGeometry args={[0.08, 0.1, 0.26]} />
+        <SoftBoxGeometry args={[0.08, 0.1, 0.26]} />
       </mesh>
       <mesh position={[0, -0.07, 0.0]} material={metal}>
         <torusGeometry args={[0.07, 0.014, 6, 16, Math.PI]} />
       </mesh>
       <mesh position={[0, 0.0, 0.2]} material={wood}>
-        <boxGeometry args={[0.07, 0.11, 0.38]} />
+        <SoftBoxGeometry args={[0.07, 0.11, 0.38]} />
       </mesh>
       <mesh position={[0, -0.06, 0.36]} material={wood}>
-        <boxGeometry args={[0.08, 0.14, 0.12]} />
+        <SoftBoxGeometry args={[0.08, 0.14, 0.12]} />
       </mesh>
       <mesh position={[0, 0.08, 0.06]} material={metal}>
-        <boxGeometry args={[0.03, 0.05, 0.05]} />
+        <SoftBoxGeometry args={[0.03, 0.05, 0.05]} />
       </mesh>
     </group>
   )
 }
 
+/**
+ * Combat pump shotgun — Sketchfab pump-action inspired silhouette.
+ * Distinct moving forend, bottom loading gate, side ejection port.
+ * Dark blued steel + scuffed wood for high contrast in dark lighting.
+ * Local: grip near origin, barrel toward −Z (FPS lower-third pose).
+ */
 function PumpShotgunMesh() {
-  const wood = useMat('#4a3018', { roughness: 0.9, metalness: 0 })
-  const metal = useMat('#2a3038', { roughness: 0.25, metalness: 0.85 })
+  // High-contrast materials: blued steel vs scuffed wood
+  const blueSteel = useMat('#1a222c', { roughness: 0.32, metalness: 0.88 })
+  const darkSteel = useMat('#0e1218', { roughness: 0.4, metalness: 0.75 })
+  const scuffedWood = useMat('#5c3a1e', { roughness: 0.92, metalness: 0.04 })
+  const wornWood = useMat('#3d2614', { roughness: 0.95, metalness: 0.02 })
+  const brass = useMat('#8a7040', { roughness: 0.45, metalness: 0.55 })
+  const cavity = useMat('#050608', { roughness: 0.9, metalness: 0.2 })
+
   return (
     <group>
-      <mesh position={[0, 0.05, -0.45]} rotation={[Math.PI / 2, 0, 0]} material={metal}>
-        <cylinderGeometry args={[0.038, 0.04, 0.78, 10]} />
+      {/* ── Barrel (long, heavy) ───────────────────────────────────── */}
+      <mesh position={[0, 0.055, -0.52]} rotation={[Math.PI / 2, 0, 0]} material={blueSteel} castShadow>
+        <cylinderGeometry args={[0.032, 0.036, 0.88, 12]} />
       </mesh>
-      <mesh position={[0, 0.0, -0.36]} rotation={[Math.PI / 2, 0, 0]} material={metal}>
-        <cylinderGeometry args={[0.026, 0.026, 0.5, 8]} />
+      {/* Muzzle ring */}
+      <mesh position={[0, 0.055, -0.97]} rotation={[Math.PI / 2, 0, 0]} material={darkSteel} castShadow>
+        <cylinderGeometry args={[0.038, 0.034, 0.06, 10]} />
       </mesh>
-      <mesh position={[0, -0.02, -0.22]} material={wood}>
-        <boxGeometry args={[0.1, 0.09, 0.22]} />
+      {/* Front sight */}
+      <mesh position={[0, 0.1, -0.9]} material={darkSteel}>
+        <SoftBoxGeometry args={[0.018, 0.04, 0.025]} />
       </mesh>
-      <mesh position={[0, 0.02, -0.02]} material={metal}>
-        <boxGeometry args={[0.1, 0.11, 0.24]} />
+      {/* Magazine tube under barrel */}
+      <mesh position={[0, 0.01, -0.42]} rotation={[Math.PI / 2, 0, 0]} material={darkSteel} castShadow>
+        <cylinderGeometry args={[0.022, 0.024, 0.62, 10]} />
       </mesh>
-      <mesh position={[0, -0.01, 0.2]} material={wood}>
-        <boxGeometry args={[0.09, 0.12, 0.36]} />
+      {/* Mag tube cap */}
+      <mesh position={[0, 0.01, -0.74]} rotation={[Math.PI / 2, 0, 0]} material={brass}>
+        <cylinderGeometry args={[0.026, 0.026, 0.04, 8]} />
       </mesh>
-      <mesh position={[0, -0.07, 0.36]} material={wood}>
-        <boxGeometry args={[0.1, 0.15, 0.12]} />
+
+      {/* ── Prominent moving forend / pump (wood) ─────────────────── */}
+      <group position={[0, -0.01, -0.28]}>
+        <mesh material={scuffedWood} castShadow>
+          <SoftBoxGeometry args={[0.1, 0.1, 0.28]} />
+        </mesh>
+        {/* Grip rings / grooves for silhouette readability */}
+        <mesh position={[0, 0, -0.06]} material={wornWood}>
+          <SoftBoxGeometry args={[0.105, 0.105, 0.03]} />
+        </mesh>
+        <mesh position={[0, 0, 0.02]} material={wornWood}>
+          <SoftBoxGeometry args={[0.105, 0.105, 0.03]} />
+        </mesh>
+        <mesh position={[0, 0, 0.1]} material={wornWood}>
+          <SoftBoxGeometry args={[0.105, 0.105, 0.03]} />
+        </mesh>
+      </group>
+
+      {/* ── Receiver ──────────────────────────────────────────────── */}
+      <mesh position={[0, 0.04, 0.02]} material={blueSteel} castShadow>
+        <SoftBoxGeometry args={[0.1, 0.12, 0.28]} />
       </mesh>
-      <mesh position={[0, -0.06, 0.02]} material={metal}>
-        <torusGeometry args={[0.048, 0.011, 6, 14, Math.PI]} />
+      {/* Top rib / rail silhouette */}
+      <mesh position={[0, 0.11, -0.05]} material={darkSteel}>
+        <SoftBoxGeometry args={[0.04, 0.02, 0.35]} />
+      </mesh>
+      {/* Side ejection port (right) — clearly visible in FPP */}
+      <mesh position={[0.052, 0.05, 0.0]} material={darkSteel}>
+        <SoftBoxGeometry args={[0.012, 0.055, 0.1]} />
+      </mesh>
+      {/* Ejection port recess (reads as open cavity) */}
+      <mesh position={[0.045, 0.05, 0.0]} material={cavity}>
+        <SoftBoxGeometry args={[0.01, 0.04, 0.08]} />
+      </mesh>
+      {/* Bottom loading gate */}
+      <mesh position={[0, -0.035, 0.04]} material={darkSteel} castShadow>
+        <SoftBoxGeometry args={[0.07, 0.025, 0.1]} />
+      </mesh>
+      {/* Loading gate hinge lip */}
+      <mesh position={[0, -0.048, 0.08]} material={brass}>
+        <SoftBoxGeometry args={[0.05, 0.012, 0.03]} />
+      </mesh>
+
+      {/* Trigger group */}
+      <mesh position={[0, -0.06, 0.08]} material={blueSteel}>
+        <torusGeometry args={[0.042, 0.01, 6, 14, Math.PI]} />
+      </mesh>
+      <mesh position={[0, -0.05, 0.08]} material={darkSteel}>
+        <SoftBoxGeometry args={[0.014, 0.04, 0.02]} />
+      </mesh>
+
+      {/* ── Stock (scuffed wood / polymer read) ────────────────────── */}
+      <mesh position={[0, 0.0, 0.28]} material={scuffedWood} castShadow>
+        <SoftBoxGeometry args={[0.09, 0.11, 0.32]} />
+      </mesh>
+      {/* Wrist of stock */}
+      <mesh position={[0, -0.02, 0.18]} material={wornWood} castShadow>
+        <SoftBoxGeometry args={[0.075, 0.09, 0.1]} />
+      </mesh>
+      {/* Buttstock */}
+      <mesh position={[0, -0.04, 0.48]} material={scuffedWood} castShadow>
+        <SoftBoxGeometry args={[0.11, 0.16, 0.14]} />
+      </mesh>
+      {/* Recoil pad */}
+      <mesh position={[0, -0.04, 0.56]} material={darkSteel}>
+        <SoftBoxGeometry args={[0.115, 0.165, 0.03]} />
       </mesh>
     </group>
   )

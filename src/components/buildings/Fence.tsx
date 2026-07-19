@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
+import { SoftBoxGeometry } from '../../geometry/SoftBoxGeometry'
 
 type FenceProps = {
   /** Start corner of rectangular fence perimeter */
@@ -81,30 +82,30 @@ export function Fence({
     <group position={center}>
       {posts.map((p, i) => (
         <mesh key={`post-${i}`} position={p} castShadow material={postMat}>
-          <boxGeometry args={[0.22, p[1] === 0.9 ? 1.8 : 1.5, 0.22]} />
+          <SoftBoxGeometry args={[0.22, p[1] === 0.9 ? 1.8 : 1.5, 0.22]} />
         </mesh>
       ))}
 
       {rails.map((r, i) => (
         <mesh key={`rail-${i}`} position={r.pos} material={railMat} castShadow>
-          <boxGeometry args={r.size} />
+          <SoftBoxGeometry args={r.size} />
         </mesh>
       ))}
 
       {/* Open gate panels (swung inward slightly) */}
       <mesh position={[-gateWidth / 4 - 0.3, 0.85, halfD - 0.6]} rotation={[0, 0.45, 0]} material={gateMat} castShadow>
-        <boxGeometry args={[gateWidth / 2 - 0.15, 1.5, 0.1]} />
+        <SoftBoxGeometry args={[gateWidth / 2 - 0.15, 1.5, 0.1]} />
       </mesh>
       <mesh position={[gateWidth / 4 + 0.3, 0.85, halfD - 0.6]} rotation={[0, -0.45, 0]} material={gateMat} castShadow>
-        <boxGeometry args={[gateWidth / 2 - 0.15, 1.5, 0.1]} />
+        <SoftBoxGeometry args={[gateWidth / 2 - 0.15, 1.5, 0.1]} />
       </mesh>
 
       {/* Gate cross-braces */}
       <mesh position={[-gateWidth / 4 - 0.3, 0.85, halfD - 0.55]} rotation={[0, 0.45, Math.PI / 5]} material={postMat}>
-        <boxGeometry args={[gateWidth / 2 - 0.3, 0.08, 0.06]} />
+        <SoftBoxGeometry args={[gateWidth / 2 - 0.3, 0.08, 0.06]} />
       </mesh>
       <mesh position={[gateWidth / 4 + 0.3, 0.85, halfD - 0.55]} rotation={[0, -0.45, -Math.PI / 5]} material={postMat}>
-        <boxGeometry args={[gateWidth / 2 - 0.3, 0.08, 0.06]} />
+        <SoftBoxGeometry args={[gateWidth / 2 - 0.3, 0.08, 0.06]} />
       </mesh>
     </group>
   )

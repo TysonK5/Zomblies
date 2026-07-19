@@ -19,6 +19,7 @@ import { registerDamageable, unregisterDamageable } from '../weapons/damageables
 import { fullLimbs, LIMB_LOCAL, limbDamageResult, type LimbId, type LimbState } from '../weapons/limbs'
 import { HeadExplosion, LimbGib } from './Gibs'
 import { spawnHitMarker } from '../weapons/hitMarkers'
+import { audioManager } from '../game/audioManager'
 import { ZombieHealthBar } from '../components/ZombieHealthBar'
 
 const ZOMBIE_MAX_HP = 100
@@ -67,6 +68,10 @@ export function ZombieAI({
   const gaitRef = useRef(0)
   /** Actual horizontal speed after collision (world units / sec) */
   const speedRef = useRef(0)
+  const groanTimer = useRef(2 + Math.random() * 4)
+  /** Cached inverted root matrix for wound attaches (1 invert / frame) */
+  const invMatRef = useRef(new THREE.Matrix4())
+  const invValidRef = useRef(false)
   const [limbs, setLimbs] = useState<LimbState>(() => fullLimbs())
   const [isDead, setIsDead] = useState(false)
   const [hpDisplay, setHpDisplay] = useState(ZOMBIE_MAX_HP)
@@ -101,6 +106,7 @@ export function ZombieAI({
 
     const _lp = new THREE.Vector3()
     const _ld = new THREE.Vector3()
+    let hpUiScheduled = false
 
     const dmgBody = {
       id: bodyId,
@@ -159,15 +165,24 @@ export function ZombieAI({
       worldToLocalDir: (nx: number, ny: number, nz: number) => {
         const g = root.current
         if (g) {
-          const inv = g.matrixWorld.clone().invert()
-          _ld.set(nx, ny, nz).transformDirection(inv)
+          // Reuse inverted matrix across multi-pellet wound attaches in one frame
+          if (!invValidRef.current) {
+            invMatRef.current.copy(g.matrixWorld).invert()
+            invValidRef.current = true
+          }
+          _ld.set(nx, ny, nz).transformDirection(invMatRef.current)
           return { x: _ld.x, y: _ld.y, z: _ld.z }
         }
         const c = Math.cos(-yaw.current)
         const s = Math.sin(-yaw.current)
         return { x: nx * c - nz * s, y: ny, z: nx * s + nz * c }
       },
-      applyDamage: (amount: number, limb?: LimbId, hitPoint?: { x: number; y: number; z: number }) => {
+      applyDamage: (
+        amount: number,
+        limb?: LimbId,
+        hitPoint?: { x: number; y: number; z: number },
+        opts?: { silent?: boolean },
+      ) => {
         if (dead.current) {
           return { killed: false, hp: 0, hpDamage: 0, limbs: limbsRef.current }
         }
@@ -182,7 +197,19 @@ export function ZombieAI({
         const applied = result.hpDamage
         dmgBody.hp = Math.max(0, dmgBody.hp - applied)
         hp.current = dmgBody.hp
-        setHpDisplay(dmgBody.hp)
+        // Batch React HP bar updates (shotgun multi-pellet)
+        if (!hpUiScheduled) {
+          hpUiScheduled = true
+          queueMicrotask(() => {
+            hpUiScheduled = false
+            setHpDisplay(hp.current)
+          })
+        }
+
+        if (applied > 0 && !opts?.silent) {
+          const panX = (hitPoint?.x ?? pos.current.x) - playerState.x
+          audioManager.play('zombie_hit', { panX, volume: 0.7 + Math.random() * 0.3 })
+        }
 
         let limbDestroyed: LimbId | undefined
         if (result.destroyLimb && limbsRef.current[targetLimb] && targetLimb !== 'torso') {
@@ -242,21 +269,47 @@ export function ZombieAI({
           }
 
           if (hitPoint) {
-            // Extra wound layer on the stump when a limb is blown off
+            // Pull stump wounds onto visual soft-box (hit sphere is larger than mesh)
+            const stump = LIMB_LOCAL[targetLimb]
+            const sc = dmgBody.localToWorldPoint
+              ? dmgBody.localToWorldPoint(stump.x, stump.y, stump.z)
+              : {
+                  x: pos.current.x + stump.x * cos + stump.z * sin,
+                  y: pos.current.y + stump.y,
+                  z: pos.current.z - stump.x * sin + stump.z * cos,
+                }
+            let snx = hitPoint.x - sc.x
+            let sny = hitPoint.y - sc.y
+            let snz = hitPoint.z - sc.z
+            const snl = Math.hypot(snx, sny, snz) || 1
+            snx /= snl
+            sny /= snl
+            snz /= snl
+            // ~visual cross-section of limb (see LIMB_VISUAL_HALF)
+            const stumpR = targetLimb === 'head' ? 0.15 : 0.07
+            const sx = sc.x + snx * (stumpR + 0.002)
+            const sy = sc.y + sny * (stumpR + 0.002)
+            const sz = sc.z + snz * (stumpR + 0.002)
             spawnHitMarker({
-              x: hitPoint.x,
-              y: hitPoint.y,
-              z: hitPoint.z,
+              x: sx,
+              y: sy,
+              z: sz,
+              nx: snx,
+              ny: sny,
+              nz: snz,
               surface: 'bullet_hole',
-              scale: 0.12,
+              scale: 0.036,
               attachId: bodyId,
             })
             spawnHitMarker({
-              x: hitPoint.x,
-              y: hitPoint.y,
-              z: hitPoint.z,
+              x: sx,
+              y: sy,
+              z: sz,
+              nx: snx,
+              ny: sny,
+              nz: snz,
               surface: 'blood_splat',
-              scale: 0.22,
+              scale: 0.048,
               attachId: bodyId,
             })
           }
@@ -267,6 +320,10 @@ export function ZombieAI({
           dead.current = true
           deathT.current = 0
           dmgBody.hp = 0
+          audioManager.play('zombie_death', {
+            panX: pos.current.x - playerState.x,
+            volume: 0.85,
+          })
           setHpDisplay(0)
           setIsDead(true)
           // Keep damageable registered so hit decals can follow the corpse pose
@@ -308,6 +365,7 @@ export function ZombieAI({
     if (!group) return
 
     const dt = Math.min(delta, 0.05)
+    invValidRef.current = false
 
     if (dead.current) {
       deathT.current += dt
@@ -335,6 +393,19 @@ export function ZombieAI({
     }
 
     if (!active) return
+
+    // Occasional groan when near the player
+    groanTimer.current -= dt
+    if (groanTimer.current <= 0) {
+      groanTimer.current = 4 + Math.random() * 7
+      const dPlayer = Math.hypot(pos.current.x - playerState.x, pos.current.z - playerState.z)
+      if (dPlayer < 28) {
+        audioManager.play('zombie_groan', {
+          panX: pos.current.x - playerState.x,
+          volume: Math.max(0.12, 0.45 * (1 - dPlayer / 28)),
+        })
+      }
+    }
 
     // Speed penalty without legs / arms
     let speedMul = 1

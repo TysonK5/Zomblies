@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
 import type { FaceAccessory, FootStyle, HandAccessory, HeadAccessory, TorsoAccessory } from './types'
+import { SoftBoxGeometry } from '../geometry/SoftBoxGeometry'
 
 function useMat(color: string, roughness = 0.85, metalness = 0) {
   return useMemo(
@@ -29,7 +30,7 @@ export function HeadAccessoryMesh({
     // Simple hair tuft when no hat
     return (
       <mesh position={[0, 0.22, -0.02]} material={hairMat} castShadow>
-        <boxGeometry args={[0.32, 0.12, 0.28]} />
+        <SoftBoxGeometry args={[0.32, 0.12, 0.28]} />
       </mesh>
     )
   }
@@ -41,7 +42,7 @@ export function HeadAccessoryMesh({
           <cylinderGeometry args={[0.22, 0.24, 0.12, 10]} />
         </mesh>
         <mesh position={[0, -0.02, 0.16]} material={accentMat} castShadow>
-          <boxGeometry args={[0.28, 0.04, 0.16]} />
+          <SoftBoxGeometry args={[0.28, 0.04, 0.16]} />
         </mesh>
         <mesh position={[0, 0.02, -0.02]} material={dark}>
           <cylinderGeometry args={[0.18, 0.18, 0.04, 8]} />
@@ -74,13 +75,13 @@ export function HeadAccessoryMesh({
         </mesh>
         {/* Knot / tails at back */}
         <mesh position={[0, 0, -0.22]} material={accentMat} castShadow rotation={[0.4, 0, 0]}>
-          <boxGeometry args={[0.12, 0.08, 0.18]} />
+          <SoftBoxGeometry args={[0.12, 0.08, 0.18]} />
         </mesh>
         <mesh position={[-0.06, -0.05, -0.28]} material={accentMat} rotation={[0.6, 0.2, 0.3]}>
-          <boxGeometry args={[0.06, 0.04, 0.14]} />
+          <SoftBoxGeometry args={[0.06, 0.04, 0.14]} />
         </mesh>
         <mesh position={[0.06, -0.05, -0.28]} material={accentMat} rotation={[0.6, -0.2, -0.3]}>
-          <boxGeometry args={[0.06, 0.04, 0.14]} />
+          <SoftBoxGeometry args={[0.06, 0.04, 0.14]} />
         </mesh>
       </group>
     )
@@ -96,7 +97,7 @@ export function HeadAccessoryMesh({
         <cylinderGeometry args={[0.25, 0.26, 0.08, 10]} />
       </mesh>
       <mesh position={[0, 0.12, 0]} material={dark}>
-        <boxGeometry args={[0.06, 0.04, 0.36]} />
+        <SoftBoxGeometry args={[0.06, 0.04, 0.36]} />
       </mesh>
     </group>
   )
@@ -121,10 +122,10 @@ export function FaceAccessoryMesh({
     return (
       <group>
         <mesh position={[-0.1, 0.04, 0.18]} material={dark} castShadow>
-          <boxGeometry args={[0.12, 0.1, 0.04]} />
+          <SoftBoxGeometry args={[0.12, 0.1, 0.04]} />
         </mesh>
         <mesh position={[-0.02, 0.1, 0.16]} material={dark} rotation={[0, 0, -0.6]}>
-          <boxGeometry args={[0.18, 0.03, 0.02]} />
+          <SoftBoxGeometry args={[0.18, 0.03, 0.02]} />
         </mesh>
       </group>
     )
@@ -134,10 +135,10 @@ export function FaceAccessoryMesh({
     return (
       <group>
         <mesh position={[0.08, 0.02, 0.19]} material={wound} rotation={[0, 0, 0.5]}>
-          <boxGeometry args={[0.04, 0.16, 0.03]} />
+          <SoftBoxGeometry args={[0.04, 0.16, 0.03]} />
         </mesh>
         <mesh position={[0.1, -0.02, 0.19]} material={wound} rotation={[0, 0, -0.3]}>
-          <boxGeometry args={[0.03, 0.1, 0.025]} />
+          <SoftBoxGeometry args={[0.03, 0.1, 0.025]} />
         </mesh>
       </group>
     )
@@ -147,16 +148,16 @@ export function FaceAccessoryMesh({
   return (
     <group>
       <mesh position={[0, -0.14, 0.1]} material={skinMat} castShadow>
-        <boxGeometry args={[0.28, 0.1, 0.22]} />
+        <SoftBoxGeometry args={[0.28, 0.1, 0.22]} />
       </mesh>
       <mesh position={[0, -0.12, 0.16]} material={dark}>
-        <boxGeometry args={[0.18, 0.08, 0.12]} />
+        <SoftBoxGeometry args={[0.18, 0.08, 0.12]} />
       </mesh>
       <mesh position={[-0.05, -0.1, 0.18]} material={bone}>
-        <boxGeometry args={[0.04, 0.06, 0.04]} />
+        <SoftBoxGeometry args={[0.04, 0.06, 0.04]} />
       </mesh>
       <mesh position={[0.05, -0.1, 0.18]} material={bone}>
-        <boxGeometry args={[0.04, 0.06, 0.04]} />
+        <SoftBoxGeometry args={[0.04, 0.06, 0.04]} />
       </mesh>
     </group>
   )
@@ -186,18 +187,18 @@ export function TorsoAccessoryMesh({
       <group>
         {/* Bib */}
         <mesh position={[0, 0.15, 0.14]} material={denim} castShadow>
-          <boxGeometry args={[0.38, 0.35, 0.06]} />
+          <SoftBoxGeometry args={[0.38, 0.35, 0.06]} />
         </mesh>
         {/* Straps */}
         <mesh position={[-0.12, 0.42, 0.12]} material={denim} castShadow rotation={[0.15, 0, 0.1]}>
-          <boxGeometry args={[0.08, 0.45, 0.04]} />
+          <SoftBoxGeometry args={[0.08, 0.45, 0.04]} />
         </mesh>
         <mesh position={[0.12, 0.42, 0.12]} material={denim} castShadow rotation={[0.15, 0, -0.1]}>
-          <boxGeometry args={[0.08, 0.45, 0.04]} />
+          <SoftBoxGeometry args={[0.08, 0.45, 0.04]} />
         </mesh>
         {/* Buckle */}
         <mesh position={[0, 0.22, 0.18]} material={accentMat}>
-          <boxGeometry args={[0.1, 0.08, 0.03]} />
+          <SoftBoxGeometry args={[0.1, 0.08, 0.03]} />
         </mesh>
       </group>
     )
@@ -207,17 +208,17 @@ export function TorsoAccessoryMesh({
     return (
       <group>
         <mesh position={[0, 0.1, 0]} material={leather} castShadow>
-          <boxGeometry args={[0.52, 0.55, 0.32]} />
+          <SoftBoxGeometry args={[0.52, 0.55, 0.32]} />
         </mesh>
         {/* Open chest shows shirt underneath via thinner center cut illusion */}
         <mesh position={[0, 0.12, 0.14]} material={shirtMat}>
-          <boxGeometry args={[0.16, 0.45, 0.04]} />
+          <SoftBoxGeometry args={[0.16, 0.45, 0.04]} />
         </mesh>
         <mesh position={[-0.14, 0.15, 0.17]} material={accentMat}>
-          <boxGeometry args={[0.06, 0.06, 0.03]} />
+          <SoftBoxGeometry args={[0.06, 0.06, 0.03]} />
         </mesh>
         <mesh position={[0.14, 0.15, 0.17]} material={accentMat}>
-          <boxGeometry args={[0.06, 0.06, 0.03]} />
+          <SoftBoxGeometry args={[0.06, 0.06, 0.03]} />
         </mesh>
       </group>
     )
@@ -227,17 +228,17 @@ export function TorsoAccessoryMesh({
   return (
     <group>
       <mesh position={[0, 0.05, 0.16]} material={apron} castShadow>
-        <boxGeometry args={[0.42, 0.7, 0.04]} />
+        <SoftBoxGeometry args={[0.42, 0.7, 0.04]} />
       </mesh>
       <mesh position={[0, 0.4, 0.14]} material={apron} castShadow>
-        <boxGeometry args={[0.48, 0.08, 0.05]} />
+        <SoftBoxGeometry args={[0.48, 0.08, 0.05]} />
       </mesh>
       {/* Blood stains */}
       <mesh position={[-0.08, -0.05, 0.19]} material={stain}>
-        <boxGeometry args={[0.12, 0.18, 0.02]} />
+        <SoftBoxGeometry args={[0.12, 0.18, 0.02]} />
       </mesh>
       <mesh position={[0.1, 0.1, 0.19]} material={stain}>
-        <boxGeometry args={[0.08, 0.12, 0.02]} />
+        <SoftBoxGeometry args={[0.08, 0.12, 0.02]} />
       </mesh>
     </group>
   )
@@ -258,11 +259,11 @@ export function HandAccessoryMesh({ type, accent }: { type: HandAccessory; accen
           <cylinderGeometry args={[0.03, 0.035, 1.1, 6]} />
         </mesh>
         <mesh position={[0, 1.05, 0.05]} material={metal} castShadow>
-          <boxGeometry args={[0.28, 0.06, 0.04]} />
+          <SoftBoxGeometry args={[0.28, 0.06, 0.04]} />
         </mesh>
         {([-0.1, 0, 0.1] as const).map((x) => (
           <mesh key={x} position={[x, 1.2, 0.05]} material={metal} castShadow>
-            <boxGeometry args={[0.035, 0.28, 0.03]} />
+            <SoftBoxGeometry args={[0.035, 0.28, 0.03]} />
           </mesh>
         ))}
       </group>
@@ -276,10 +277,10 @@ export function HandAccessoryMesh({ type, accent }: { type: HandAccessory; accen
           <cylinderGeometry args={[0.03, 0.035, 0.95, 6]} />
         </mesh>
         <mesh position={[0, 0.95, 0.02]} material={metal} castShadow>
-          <boxGeometry args={[0.22, 0.28, 0.04]} />
+          <SoftBoxGeometry args={[0.22, 0.28, 0.04]} />
         </mesh>
         <mesh position={[0, -0.05, 0]} material={accentMat}>
-          <boxGeometry args={[0.12, 0.04, 0.04]} />
+          <SoftBoxGeometry args={[0.12, 0.04, 0.04]} />
         </mesh>
       </group>
     )
@@ -289,7 +290,7 @@ export function HandAccessoryMesh({ type, accent }: { type: HandAccessory; accen
   return (
     <group position={[0, -0.2, 0.08]} rotation={[0.4, 0, 0.2]}>
       <mesh position={[0, 0.35, 0]} material={wood} castShadow>
-        <boxGeometry args={[0.1, 0.85, 0.06]} />
+        <SoftBoxGeometry args={[0.1, 0.85, 0.06]} />
       </mesh>
       <mesh position={[0.04, 0.65, 0.04]} material={metal}>
         <sphereGeometry args={[0.035, 6, 6]} />
@@ -325,7 +326,7 @@ export function FootMeshes({
   if (style === 'bare') {
     return (
       <mesh position={[x * 0.02, 0.05, 0.04]} material={skinMat} castShadow>
-        <boxGeometry args={[0.14, 0.1, 0.24]} />
+        <SoftBoxGeometry args={[0.14, 0.1, 0.24]} />
       </mesh>
     )
   }
@@ -334,13 +335,13 @@ export function FootMeshes({
     if (side === 'L') {
       return (
         <mesh position={[0, 0.07, 0.05]} material={bootMat} castShadow>
-          <boxGeometry args={[0.16, 0.14, 0.28]} />
+          <SoftBoxGeometry args={[0.16, 0.14, 0.28]} />
         </mesh>
       )
     }
     return (
       <mesh position={[0, 0.05, 0.04]} material={skinMat} castShadow>
-        <boxGeometry args={[0.14, 0.1, 0.24]} />
+        <SoftBoxGeometry args={[0.14, 0.1, 0.24]} />
       </mesh>
     )
   }
@@ -349,10 +350,10 @@ export function FootMeshes({
   return (
     <group>
       <mesh position={[0, 0.09, 0.04]} material={bootMat} castShadow>
-        <boxGeometry args={[0.16, 0.18, 0.26]} />
+        <SoftBoxGeometry args={[0.16, 0.18, 0.26]} />
       </mesh>
       <mesh position={[0, 0.2, 0]} material={pantsMat} castShadow>
-        <boxGeometry args={[0.15, 0.08, 0.15]} />
+        <SoftBoxGeometry args={[0.15, 0.08, 0.15]} />
       </mesh>
     </group>
   )

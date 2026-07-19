@@ -5,12 +5,12 @@ import type { ZombieModelProps } from './types'
 import {
   FaceAccessoryMesh,
   FootMeshes,
-  HandAccessoryMesh,
   HeadAccessoryMesh,
   TorsoAccessoryMesh,
 } from './Accessories'
 import { fullLimbs } from '../weapons/limbs'
 import { sampleZombieWalk, type ZombieWalkPose } from './zombieWalk'
+import { SoftBoxGeometry } from '../geometry/SoftBoxGeometry'
 
 /**
  * Modular zombie body with raised-arm shambling walk and dismemberment.
@@ -176,11 +176,11 @@ export function ZombieModel({
         {limbs.legL ? (
           <group ref={legL} position={[-0.12, 0, 0]}>
             <mesh position={[0, -thighLen * 0.5, 0]} material={pantsMat} castShadow>
-              <boxGeometry args={[0.16, thighLen, 0.16]} />
+              <SoftBoxGeometry args={[0.16, thighLen, 0.16]} />
             </mesh>
             <group ref={kneeL} position={[0, -thighLen, 0]}>
               <mesh position={[0, -shinLen * 0.5, 0]} material={pantsMat} castShadow>
-                <boxGeometry args={[0.14, shinLen, 0.14]} />
+                <SoftBoxGeometry args={[0.14, shinLen, 0.14]} />
               </mesh>
               <group position={[0, -shinLen, 0]}>
                 <FootMeshes
@@ -202,11 +202,11 @@ export function ZombieModel({
         {limbs.legR ? (
           <group ref={legR} position={[0.12, 0, 0]}>
             <mesh position={[0, -thighLen * 0.5, 0]} material={pantsMat} castShadow>
-              <boxGeometry args={[0.16, thighLen, 0.16]} />
+              <SoftBoxGeometry args={[0.16, thighLen, 0.16]} />
             </mesh>
             <group ref={kneeR} position={[0, -thighLen, 0]}>
               <mesh position={[0, -shinLen * 0.5, 0]} material={pantsMat} castShadow>
-                <boxGeometry args={[0.14, shinLen, 0.14]} />
+                <SoftBoxGeometry args={[0.14, shinLen, 0.14]} />
               </mesh>
               <group position={[0, -shinLen, 0]}>
                 <FootMeshes
@@ -229,10 +229,10 @@ export function ZombieModel({
         {limbs.torso && (
           <group ref={torsoRef} position={[0, 0.15, 0]}>
             <mesh position={[0, 0.05, 0]} material={shirtMat} castShadow>
-              <boxGeometry args={[0.42, 0.25, 0.24]} />
+              <SoftBoxGeometry args={[0.42, 0.25, 0.24]} />
             </mesh>
             <mesh position={[0, 0.35, 0]} material={shirtMat} castShadow>
-              <boxGeometry args={[0.48, 0.5, 0.28]} />
+              <SoftBoxGeometry args={[0.48, 0.5, 0.28]} />
             </mesh>
             <mesh position={[0, 0.65, 0]} material={skinMat} castShadow>
               <cylinderGeometry args={[0.08, 0.1, 0.12, 8]} />
@@ -243,19 +243,19 @@ export function ZombieModel({
             {limbs.head ? (
               <group ref={headRef} position={[0, 0.82, 0]}>
                 <mesh material={skinMat} castShadow>
-                  <boxGeometry args={[0.32, 0.36, 0.32]} />
+                  <SoftBoxGeometry args={[0.32, 0.36, 0.32]} />
                 </mesh>
                 <mesh position={[-0.08, 0.04, 0.16]} material={eyeMat}>
-                  <boxGeometry args={[0.07, 0.05, 0.04]} />
+                  <SoftBoxGeometry args={[0.07, 0.05, 0.04]} />
                 </mesh>
                 {accessories.face !== 'eyepatch' && (
                   <mesh position={[0.08, 0.04, 0.16]} material={eyeMat}>
-                    <boxGeometry args={[0.07, 0.05, 0.04]} />
+                    <SoftBoxGeometry args={[0.07, 0.05, 0.04]} />
                   </mesh>
                 )}
                 {!hideJaw && (
                   <mesh position={[0, -0.1, 0.15]} material={mouthMat}>
-                    <boxGeometry args={[0.14, 0.05, 0.04]} />
+                    <SoftBoxGeometry args={[0.14, 0.05, 0.04]} />
                   </mesh>
                 )}
                 <HeadAccessoryMesh type={accessories.head} accent={accent} hair={hair} />
@@ -276,15 +276,15 @@ export function ZombieModel({
               <group ref={armL} position={[-0.28, 0.5, 0.02]}>
                 {/* Upper arm */}
                 <mesh position={[0, -0.18, 0]} material={shirtMat} castShadow>
-                  <boxGeometry args={[0.12, 0.36, 0.12]} />
+                  <SoftBoxGeometry args={[0.12, 0.36, 0.12]} />
                 </mesh>
                 {/* Forearm + hand — straight chain along upper-arm axis */}
                 <group ref={forearmL} position={[0, -0.38, 0]}>
                   <mesh position={[0, -0.14, 0]} material={skinMat} castShadow>
-                    <boxGeometry args={[0.1, 0.28, 0.1]} />
+                    <SoftBoxGeometry args={[0.1, 0.28, 0.1]} />
                   </mesh>
                   <mesh position={[0, -0.32, 0]} material={skinMat} castShadow>
-                    <boxGeometry args={[0.11, 0.11, 0.13]} />
+                    <SoftBoxGeometry args={[0.11, 0.11, 0.13]} />
                   </mesh>
                 </group>
               </group>
@@ -297,18 +297,15 @@ export function ZombieModel({
             {limbs.armR ? (
               <group ref={armR} position={[0.28, 0.5, 0.02]}>
                 <mesh position={[0, -0.18, 0]} material={shirtMat} castShadow>
-                  <boxGeometry args={[0.12, 0.36, 0.12]} />
+                  <SoftBoxGeometry args={[0.12, 0.36, 0.12]} />
                 </mesh>
                 <group ref={forearmR} position={[0, -0.38, 0]}>
                   <mesh position={[0, -0.14, 0]} material={skinMat} castShadow>
-                    <boxGeometry args={[0.1, 0.28, 0.1]} />
+                    <SoftBoxGeometry args={[0.1, 0.28, 0.1]} />
                   </mesh>
                   <mesh position={[0, -0.32, 0]} material={skinMat} castShadow>
-                    <boxGeometry args={[0.11, 0.11, 0.13]} />
+                    <SoftBoxGeometry args={[0.11, 0.11, 0.13]} />
                   </mesh>
-                  <group position={[0, -0.38, 0.02]}>
-                    <HandAccessoryMesh type={accessories.hand} accent={accent} />
-                  </group>
                 </group>
               </group>
             ) : (

@@ -54,6 +54,60 @@ export function limbLocalForPose(crawling: boolean) {
 }
 
 /**
+ * Visual soft-box half-extents (root space), matched to ZombieModel SoftBoxGeometry.
+ * Hit spheres are larger than the mesh — wound FX projects onto these bounds so
+ * decals sit on the body instead of floating outside the hit-sphere surface.
+ */
+export const LIMB_VISUAL_HALF: Record<LimbId, { x: number; y: number; z: number }> = {
+  // SoftBox 0.32×0.36×0.32
+  head: { x: 0.155, y: 0.175, z: 0.155 },
+  // Dominant chest box 0.48×0.5×0.28 (depth is the tight axis from front)
+  torso: { x: 0.22, y: 0.28, z: 0.13 },
+  // Thin limbs — cross-section ~0.12; keep small so side hits don’t float
+  armL: { x: 0.065, y: 0.07, z: 0.12 },
+  armR: { x: 0.065, y: 0.07, z: 0.12 },
+  legL: { x: 0.08, y: 0.2, z: 0.08 },
+  legR: { x: 0.08, y: 0.2, z: 0.08 },
+}
+
+/** Crawl pose: body is flatter / lower — slightly taller Y, wider XZ */
+export const LIMB_VISUAL_HALF_CRAWL: Record<LimbId, { x: number; y: number; z: number }> = {
+  head: { x: 0.16, y: 0.14, z: 0.16 },
+  torso: { x: 0.28, y: 0.14, z: 0.32 },
+  armL: { x: 0.07, y: 0.07, z: 0.12 },
+  armR: { x: 0.07, y: 0.07, z: 0.12 },
+  legL: { x: 0.07, y: 0.08, z: 0.07 },
+  legR: { x: 0.07, y: 0.08, z: 0.07 },
+}
+
+export function limbVisualHalfForPose(limb: LimbId, crawling: boolean) {
+  return crawling ? LIMB_VISUAL_HALF_CRAWL[limb] : LIMB_VISUAL_HALF[limb]
+}
+
+/**
+ * Distance from AABB center to the box surface along a unit direction.
+ * Used to project hit-sphere impact points onto the visual mesh volume.
+ */
+export function distToBoxSurface(
+  nx: number,
+  ny: number,
+  nz: number,
+  hx: number,
+  hy: number,
+  hz: number,
+): number {
+  const ax = Math.abs(nx)
+  const ay = Math.abs(ny)
+  const az = Math.abs(nz)
+  const tx = ax > 1e-8 ? hx / ax : Infinity
+  const ty = ay > 1e-8 ? hy / ay : Infinity
+  const tz = az > 1e-8 ? hz / az : Infinity
+  const t = Math.min(tx, ty, tz)
+  if (!Number.isFinite(t) || t <= 0) return Math.min(hx, hy, hz)
+  return t
+}
+
+/**
  * How damage applies per part.
  * - Head: instant kill + destroy
  * - Torso: full weapon damage to HP (no sever unless massive overkill)

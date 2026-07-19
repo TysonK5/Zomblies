@@ -1,6 +1,7 @@
 import { WEAPONS, WEAPON_ORDER, weaponBySlot } from './definitions'
 import type { WeaponAnimPhase, WeaponHudSnapshot, WeaponId, WeaponRuntime } from './types'
 import { getClipDuration } from './weaponAnims'
+import { audioManager } from '../game/audioManager'
 
 type Listener = (s: WeaponHudSnapshot) => void
 
@@ -52,6 +53,7 @@ class WeaponStateStore {
     this.shellsToLoad = 0
     this.queueLever = false
     this.currentId = id
+    audioManager.play('equip')
     this.emit()
   }
 
@@ -143,6 +145,7 @@ class WeaponStateStore {
       this.animDuration = getClipDuration(def.id, 'reload', def.shellReloadTime ?? 0.55)
       this.shellsToLoad = 1
       this.reloadPulse++
+      audioManager.play('reload')
       this.emit()
       return true
     }
@@ -152,6 +155,7 @@ class WeaponStateStore {
     this.animDuration = getClipDuration(def.id, 'reload', def.reloadTime)
     this.shellsToLoad = 0
     this.reloadPulse++
+    audioManager.play('reload')
     this.emit()
     return true
   }
@@ -181,6 +185,7 @@ class WeaponStateStore {
         this.animT = 0
         this.animDuration = getClipDuration(this.def.id, 'pump', 0.5)
         this.shellsToLoad = 0
+        audioManager.play('pump')
         this.emit()
         return
       }
@@ -189,6 +194,7 @@ class WeaponStateStore {
         this.animT = 0
         this.animDuration = getClipDuration(this.def.id, 'lever', 0.5)
         this.queueLever = false
+        audioManager.play('lever')
         this.emit()
         return
       }
@@ -218,6 +224,7 @@ class WeaponStateStore {
           this.animT = 0
           this.animDuration = getClipDuration(def.id, 'reload', def.shellReloadTime ?? 0.55)
           this.reloadPulse++
+          audioManager.play('reload')
           this.emit()
           return
         }
@@ -225,6 +232,7 @@ class WeaponStateStore {
         this.phase = 'pump'
         this.animT = 0
         this.animDuration = getClipDuration(def.id, 'pump', 0.5)
+        audioManager.play('pump')
         this.emit()
         return
       }

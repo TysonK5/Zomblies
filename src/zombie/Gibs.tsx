@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { LimbId } from '../weapons/limbs'
 import { getGroundHeight } from '../game/ground'
+import { SoftBoxGeometry } from '../geometry/SoftBoxGeometry'
 
 export type GibSpawn = {
   id: string
@@ -107,7 +108,7 @@ export function LimbGib({
       {limb === 'head' && (
         <>
           <mesh material={mat} castShadow>
-            <boxGeometry args={[0.28, 0.28, 0.28]} />
+            <SoftBoxGeometry args={[0.28, 0.28, 0.28]} />
           </mesh>
           <mesh position={[0, -0.1, 0]} material={blood}>
             <sphereGeometry args={[0.09, 6, 6]} />
@@ -117,7 +118,7 @@ export function LimbGib({
       {(limb === 'armL' || limb === 'armR') && (
         <>
           <mesh material={mat} castShadow>
-            <boxGeometry args={[0.12, 0.4, 0.12]} />
+            <SoftBoxGeometry args={[0.12, 0.4, 0.12]} />
           </mesh>
           <mesh position={[0, 0.18, 0]} material={blood}>
             <sphereGeometry args={[0.07, 6, 6]} />
@@ -127,7 +128,7 @@ export function LimbGib({
       {(limb === 'legL' || limb === 'legR') && (
         <>
           <mesh material={mat} castShadow>
-            <boxGeometry args={[0.14, 0.45, 0.14]} />
+            <SoftBoxGeometry args={[0.14, 0.45, 0.14]} />
           </mesh>
           <mesh position={[0, 0.2, 0]} material={blood}>
             <sphereGeometry args={[0.08, 6, 6]} />
@@ -136,7 +137,7 @@ export function LimbGib({
       )}
       {limb === 'torso' && (
         <mesh material={mat} castShadow>
-          <boxGeometry args={[0.4, 0.4, 0.22]} />
+          <SoftBoxGeometry args={[0.4, 0.4, 0.22]} />
         </mesh>
       )}
     </group>
@@ -238,7 +239,7 @@ export function HeadExplosion({
           material={b.id % 3 === 0 ? blood : skin}
           castShadow
         >
-          <boxGeometry args={[1, 1, 1]} />
+          <SoftBoxGeometry args={[1, 1, 1]} />
         </mesh>
       ))}
     </group>

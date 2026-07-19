@@ -2,8 +2,8 @@
  * Keyframed FPS viewmodel poses inspired by polished game weapon anims.
  *
  * Gun ref: LayzuhCatz “Lever Action Double Barrel Shotgun” (kick / lever / break).
- * Pitchfork refs: Half Sword eye-thrust shorts + Blood: Fresh Supply pitchfork kill
- * (heavy wind-up, face-line thrust, bury, rip free).
+ * Pitchfork: low ready hold under the FOV; stab coils low then swings
+ * tips up through screen center (crosshair) for the bury.
  *
  * Local space: +X right, +Y up, −Z toward aim (in front of camera).
  *
@@ -160,36 +160,54 @@ const LEVER22_RELOAD: Keyframe[] = [
   { t: 1, pose: REST },
 ]
 
-/** Pump — heavy stock push-back + tall muzzle climb */
+/**
+ * Combat pump — level barrel along aim (not tipped up).
+ * Low on screen for ejection-port readability, but pitch stays near zero.
+ */
+const PUMP_REST: ViewPose = {
+  x: 0.26,
+  y: -0.3,
+  z: -0.55,
+  rx: 0.02,
+  ry: 0.1,
+  rz: 0.01,
+}
+
+/** Kick: short muzzle climb then snap back to level aim */
 const PUMP_FIRE: Keyframe[] = [
-  { t: 0, pose: REST },
-  { t: 0.06, pose: { x: 0.32, y: 0.0, z: -0.2, rx: -1.05, ry: 0.1, rz: 0.14 } },
-  { t: 0.15, pose: { x: 0.31, y: -0.05, z: -0.26, rx: -0.82, ry: 0.12, rz: 0.1 } },
-  { t: 0.35, pose: { x: 0.29, y: -0.18, z: -0.4, rx: -0.28, ry: 0.14, rz: 0.04 } },
-  { t: 0.6, pose: { x: 0.28, y: -0.26, z: -0.52, rx: 0.0, ry: 0.16, rz: 0.01 } },
-  { t: 1, pose: REST },
+  { t: 0, pose: PUMP_REST },
+  { t: 0.05, pose: { x: 0.28, y: -0.12, z: -0.28, rx: -0.55, ry: 0.08, rz: 0.1 } },
+  { t: 0.14, pose: { x: 0.27, y: -0.18, z: -0.36, rx: -0.32, ry: 0.1, rz: 0.06 } },
+  { t: 0.32, pose: { x: 0.26, y: -0.26, z: -0.48, rx: -0.06, ry: 0.1, rz: 0.02 } },
+  { t: 0.55, pose: { x: 0.26, y: -0.3, z: -0.54, rx: 0.0, ry: 0.1, rz: 0.01 } },
+  { t: 1, pose: PUMP_REST },
 ]
 
+/** Rack the prominent forend — pull back then slam forward */
 const PUMP_RACK: Keyframe[] = [
-  { t: 0, pose: REST },
-  // Pull forend back (gun shifts back + slight pitch)
-  { t: 0.2, pose: { x: 0.26, y: -0.3, z: -0.38, rx: 0.2, ry: 0.1, rz: -0.05 } },
-  { t: 0.4, pose: { x: 0.24, y: -0.32, z: -0.3, rx: 0.28, ry: 0.08, rz: -0.08 } },
-  // Hold
-  { t: 0.5, pose: { x: 0.24, y: -0.32, z: -0.28, rx: 0.3, ry: 0.08, rz: -0.08 } },
-  // Slam forward
-  { t: 0.72, pose: { x: 0.32, y: -0.22, z: -0.52, rx: -0.12, ry: 0.18, rz: 0.1 } },
-  { t: 0.9, pose: { x: 0.28, y: -0.27, z: -0.55, rx: 0.08, ry: 0.16, rz: 0.02 } },
-  { t: 1, pose: REST },
+  { t: 0, pose: PUMP_REST },
+  { t: 0.18, pose: { x: 0.24, y: -0.34, z: -0.46, rx: 0.12, ry: 0.08, rz: -0.04 } },
+  { t: 0.38, pose: { x: 0.22, y: -0.36, z: -0.38, rx: 0.18, ry: 0.06, rz: -0.08 } },
+  { t: 0.5, pose: { x: 0.22, y: -0.36, z: -0.36, rx: 0.2, ry: 0.06, rz: -0.08 } },
+  { t: 0.72, pose: { x: 0.28, y: -0.26, z: -0.52, rx: -0.04, ry: 0.12, rz: 0.04 } },
+  { t: 0.9, pose: { x: 0.26, y: -0.3, z: -0.54, rx: 0.02, ry: 0.1, rz: 0.01 } },
+  { t: 1, pose: PUMP_REST },
 ]
 
+/** Bottom-gate shell feed — tip barrels down for gate, not up */
 const PUMP_RELOAD: Keyframe[] = [
-  { t: 0, pose: REST },
-  // Flip to port / belly up for shell
-  { t: 0.2, pose: { x: 0.2, y: -0.42, z: -0.45, rx: 0.65, ry: 0.35, rz: 0.55 } },
-  { t: 0.45, pose: { x: 0.18, y: -0.48, z: -0.4, rx: 0.75, ry: 0.4, rz: 0.65 } },
-  { t: 0.7, pose: { x: 0.22, y: -0.38, z: -0.48, rx: 0.4, ry: 0.25, rz: 0.3 } },
-  { t: 1, pose: REST },
+  { t: 0, pose: PUMP_REST },
+  { t: 0.18, pose: { x: 0.2, y: -0.42, z: -0.44, rx: 0.55, ry: 0.22, rz: 0.35 } },
+  { t: 0.42, pose: { x: 0.18, y: -0.48, z: -0.4, rx: 0.72, ry: 0.28, rz: 0.42 } },
+  { t: 0.68, pose: { x: 0.22, y: -0.38, z: -0.48, rx: 0.28, ry: 0.16, rz: 0.18 } },
+  { t: 1, pose: PUMP_REST },
+]
+
+const PUMP_EQUIP: Keyframe[] = [
+  { t: 0, pose: { x: 0.3, y: -0.72, z: -0.32, rx: 0.55, ry: 0.18, rz: 0.2 } },
+  { t: 0.4, pose: { x: 0.28, y: -0.4, z: -0.5, rx: 0.15, ry: 0.12, rz: 0.06 } },
+  { t: 0.75, pose: { x: 0.26, y: -0.3, z: -0.55, rx: 0.04, ry: 0.1, rz: 0.02 } },
+  { t: 1, pose: PUMP_REST },
 ]
 
 const FIST_MELEE: Keyframe[] = [
@@ -204,68 +222,111 @@ const FIST_MELEE: Keyframe[] = [
 ]
 
 /**
- * Pitchfork — tips sit on screen center / crosshair.
+ * Pitchfork — low ready hold; stab swings tips UP into screen center.
  *
  * Mesh has tine tips at local (0,0,0); view pose (x,y,z) is where the tips are
- * in camera space. Crosshair is along (0,0,-depth), so idle x≈0, y≈0.
+ * in camera space. Crosshair is (0,0,-depth).
  *
- * Attack: pull tips toward camera (less depth) → stab forward (more depth)
- * along the same center line, then recover.
+ * Idle: tips sit low / slightly right (bottom third of the FOV).
+ * Melee: wind back low → arc up through center → thrust deep → drop back down.
  */
 /** Depth of tips in front of camera (negative Z = forward) */
-const FORK_TIP_IDLE_Z = -0.92
-const FORK_TIP_PULL_Z = -0.48
-const FORK_TIP_STAB_Z = -1.55
+const FORK_TIP_IDLE_Z = -0.78
+const FORK_TIP_PULL_Z = -0.42
+const FORK_TIP_STAB_Z = -1.52
 
+/** Low ready — tips under the crosshair, shaft fills the lower screen */
 const FORK_IDLE: ViewPose = {
-  x: 0,
-  y: 0,
+  x: 0.1,
+  y: -0.42,
   z: FORK_TIP_IDLE_Z,
-  rx: 0,
-  ry: 0,
-  rz: 0,
+  rx: 0.28,
+  ry: 0.06,
+  rz: 0.04,
 }
 
 const FORK_MELEE: Keyframe[] = [
   { t: 0, pose: FORK_IDLE },
-  // Pull in toward body (tips still on crosshair line)
+  // Coil low — pull tips toward body, stay under the screen
   {
-    t: 0.18,
-    pose: { x: 0, y: -0.02, z: FORK_TIP_PULL_Z, rx: 0.06, ry: 0, rz: 0 },
+    t: 0.16,
+    pose: {
+      x: 0.14,
+      y: -0.52,
+      z: FORK_TIP_PULL_Z,
+      rx: 0.42,
+      ry: 0.08,
+      rz: 0.08,
+    },
   },
-  // Coil at max pull
+  // Peak coil — loaded for the upward swing
   {
-    t: 0.28,
-    pose: { x: 0.01, y: -0.03, z: FORK_TIP_PULL_Z + 0.04, rx: 0.1, ry: 0, rz: 0.02 },
+    t: 0.26,
+    pose: {
+      x: 0.16,
+      y: -0.55,
+      z: FORK_TIP_PULL_Z + 0.05,
+      rx: 0.5,
+      ry: 0.1,
+      rz: 0.1,
+    },
   },
-  // Stab forward through crosshair
+  // Swing UP into center of screen (crosshair line)
   {
-    t: 0.42,
-    pose: { x: 0, y: 0.01, z: FORK_TIP_STAB_Z, rx: -0.04, ry: 0, rz: 0 },
+    t: 0.4,
+    pose: {
+      x: 0.02,
+      y: 0.02,
+      z: FORK_TIP_STAB_Z,
+      rx: -0.08,
+      ry: 0,
+      rz: -0.02,
+    },
   },
-  // Hold / bury
+  // Bury / hold on center
   {
-    t: 0.55,
-    pose: { x: 0, y: 0.02, z: FORK_TIP_STAB_Z - 0.06, rx: -0.06, ry: 0, rz: 0 },
+    t: 0.52,
+    pose: {
+      x: 0,
+      y: 0.04,
+      z: FORK_TIP_STAB_Z - 0.08,
+      rx: -0.12,
+      ry: 0,
+      rz: 0,
+    },
   },
-  // Retract along center line
+  // Retract while still high
   {
-    t: 0.72,
-    pose: { x: 0, y: -0.01, z: -1.1, rx: 0.02, ry: 0, rz: 0 },
+    t: 0.68,
+    pose: {
+      x: 0.04,
+      y: -0.08,
+      z: -1.05,
+      rx: 0.05,
+      ry: 0.02,
+      rz: 0.02,
+    },
   },
-  // Settle to ready
+  // Drop back to low ready
   {
-    t: 0.9,
-    pose: { x: 0, y: 0, z: FORK_TIP_IDLE_Z - 0.04, rx: 0, ry: 0, rz: 0 },
+    t: 0.88,
+    pose: {
+      x: 0.08,
+      y: -0.36,
+      z: FORK_TIP_IDLE_Z - 0.04,
+      rx: 0.22,
+      ry: 0.05,
+      rz: 0.03,
+    },
   },
   { t: 1, pose: FORK_IDLE },
 ]
 
 const FORK_EQUIP: Keyframe[] = [
-  // Come up from below, tips find center
-  { t: 0, pose: { x: 0.08, y: -0.55, z: -0.55, rx: 0.5, ry: 0.1, rz: 0.1 } },
-  { t: 0.4, pose: { x: 0.02, y: -0.15, z: -0.75, rx: 0.12, ry: 0.02, rz: 0.02 } },
-  { t: 0.75, pose: { x: 0, y: -0.02, z: FORK_TIP_IDLE_Z, rx: 0.02, ry: 0, rz: 0 } },
+  // Rise from below into low ready (not center aim)
+  { t: 0, pose: { x: 0.18, y: -0.72, z: -0.45, rx: 0.7, ry: 0.12, rz: 0.12 } },
+  { t: 0.4, pose: { x: 0.12, y: -0.52, z: -0.65, rx: 0.4, ry: 0.08, rz: 0.06 } },
+  { t: 0.75, pose: { x: 0.1, y: -0.44, z: FORK_TIP_IDLE_Z, rx: 0.3, ry: 0.06, rz: 0.04 } },
   { t: 1, pose: FORK_IDLE },
 ]
 
@@ -482,11 +543,11 @@ const CLIPS: Record<WeaponId, ClipMap> = {
     equip: EQUIP,
   },
   pump_shotgun: {
-    idle: [{ t: 0, pose: REST }],
+    idle: [{ t: 0, pose: PUMP_REST }],
     fire: PUMP_FIRE,
     pump: PUMP_RACK,
     reload: PUMP_RELOAD,
-    equip: EQUIP,
+    equip: PUMP_EQUIP,
   },
   mp40: {
     idle: [{ t: 0, pose: MP40_REST }],
@@ -521,12 +582,12 @@ export function getWeaponClip(weaponId: WeaponId, clip: WeaponClipId): Keyframe[
 /** Durations (seconds) tuned to read clearly */
 export const CLIP_DURATION: Record<WeaponId, Partial<Record<WeaponClipId, number>>> = {
   fist: { melee: 0.42, fire: 0.42, equip: 0.35 },
-  // Pull-in → stab-forward (tips stay on crosshair line)
-  pitchfork: { melee: 0.62, fire: 0.62, equip: 0.42 },
+  // Low ready → swing up to center → bury → drop
+  pitchfork: { melee: 0.7, fire: 0.7, equip: 0.42 },
   // Fire clips long enough to read muzzle-up kick before lever/pump
   double_barrel: { fire: 0.48, lever: 0.55, reload: 1.85, equip: 0.45 },
   lever22: { fire: 0.38, lever: 0.5, reload: 2.1, equip: 0.4 },
-  pump_shotgun: { fire: 0.48, pump: 0.52, reload: 0.65, equip: 0.4 },
+  pump_shotgun: { fire: 0.52, pump: 0.58, reload: 0.65, equip: 0.45 },
   // Short fire so full-auto kick can re-trigger each shot; mag-drop reload
   mp40: { fire: 0.13, reload: 2.35, equip: 0.42 },
   // Heavy kick + settle; cylinder-swing reload
@@ -544,15 +605,15 @@ export function applyIdleSway(
   moveBob: number,
   opts?: { lockAim?: boolean },
 ): ViewPose {
-  // Pitchfork: keep tips locked to crosshair — only tiny depth bob
+  // Pitchfork low-ready: gentle bob (do not snap tips to crosshair)
   if (opts?.lockAim) {
     return {
-      x: pose.x,
-      y: pose.y,
-      z: pose.z + Math.sin(time * 2.2) * 0.008 + Math.sin(time * 9) * 0.012 * moveBob,
-      rx: pose.rx,
+      x: pose.x + Math.sin(time * 1.2) * 0.006,
+      y: pose.y + Math.cos(time * 1.4) * 0.008 + Math.abs(Math.cos(time * 8.5)) * 0.02 * moveBob,
+      z: pose.z + Math.sin(time * 2.2) * 0.006 + Math.sin(time * 9) * 0.01 * moveBob,
+      rx: pose.rx + Math.sin(time * 1.1) * 0.01,
       ry: pose.ry,
-      rz: pose.rz,
+      rz: pose.rz + Math.sin(time * 1.3) * 0.012,
     }
   }
   const s = 1
@@ -618,13 +679,13 @@ export function sampleThirdPersonWeaponPose(
   let armLZ = 0.42
 
   if (weaponId === 'pitchfork') {
-    // Two hands on shaft, parallel reach
-    armRX = -1.38
-    armRY = 0.06
-    armRZ = -0.12
-    armLX = -1.32
-    armLY = -0.04
-    armLZ = 0.16
+    // Low ready — arms less raised than gun aim so shaft sits lower
+    armRX = -1.05
+    armRY = 0.1
+    armRZ = -0.18
+    armLX = -1.0
+    armLY = -0.06
+    armLZ = 0.2
   } else if (weaponId === 'mp40') {
     // Compact SMG hold — arms a bit tighter / closer to body
     armRX = -1.4
@@ -667,17 +728,17 @@ export function sampleThirdPersonWeaponPose(
       armLZ = 0.05
     }
   } else if (weaponId === 'pitchfork') {
-    // Pull-in is +dz (tips closer / arms retract); stab is −dz (arms extend)
-    // Map to shoulder pitch: more negative x = more forward reach
-    armRX += -dz * 0.55 + drx * 0.9 - dy * 0.5
-    armLX += -dz * 0.5 + drx * 0.8 - dy * 0.45
+    // Low hold → swing UP (positive dy) + thrust (−dz) → arms raise and extend
+    // Stronger dy weight so the upward arc reads clearly in third person
+    armRX += -dz * 0.5 + drx * 0.85 - dy * 1.15
+    armLX += -dz * 0.45 + drx * 0.75 - dy * 1.05
     armRZ += drz * 0.5 + dry * 0.3
     armLZ += -drz * 0.35 + dry * 0.2
-    armRY += dx * 0.25
-    armLY += dx * 0.15
+    armRY += dx * 0.3
+    armLY += dx * 0.18
     if (phase === 'idle') {
-      armRX += walkSwing * 0.08
-      armLX -= walkSwing * 0.08
+      armRX += walkSwing * 0.1
+      armLX -= walkSwing * 0.1
     }
   } else if (weaponId === 'revolver') {
     // Heavy one-hand kick — right arm flips muzzle up hard

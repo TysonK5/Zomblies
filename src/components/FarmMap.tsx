@@ -5,6 +5,7 @@ import { Farmhouse } from './buildings/Farmhouse'
 import { Fence } from './buildings/Fence'
 import { ZombieShowcase } from './ZombieShowcase'
 import { addGroundSurface, clearGroundSurfaces, createHeightPad } from '../game/ground'
+import { SoftBoxGeometry } from '../geometry/SoftBoxGeometry'
 
 function Tree({ position }: { position: [number, number, number] }) {
   const trunk = useMemo(() => new THREE.MeshStandardMaterial({ color: '#4A3728', roughness: 0.95 }), [])
@@ -147,18 +148,18 @@ export function FarmMap() {
 
       {/* Water trough */}
       <mesh position={[-6, 0.35, -10]} castShadow receiveShadow>
-        <boxGeometry args={[2.2, 0.7, 0.9]} />
+        <SoftBoxGeometry args={[2.2, 0.7, 0.9]} />
         <meshStandardMaterial color="#5C4033" roughness={0.9} />
       </mesh>
       <mesh position={[-6, 0.55, -10]}>
-        <boxGeometry args={[1.9, 0.15, 0.65]} />
+        <SoftBoxGeometry args={[1.9, 0.15, 0.65]} />
         <meshStandardMaterial color="#3A6B8C" roughness={0.3} metalness={0.2} />
       </mesh>
 
       {/* Simple outhouse */}
       <group position={[16, 0, 2]}>
         <mesh position={[0, 1.2, 0]} castShadow>
-          <boxGeometry args={[1.4, 2.4, 1.4]} />
+          <SoftBoxGeometry args={[1.4, 2.4, 1.4]} />
           <meshStandardMaterial color="#6B5A3E" roughness={0.9} />
         </mesh>
         <mesh position={[0, 2.55, 0]} castShadow rotation={[0, Math.PI / 4, 0]}>
@@ -166,7 +167,7 @@ export function FarmMap() {
           <meshStandardMaterial color="#3D2914" roughness={0.85} />
         </mesh>
         <mesh position={[0, 1.0, 0.72]}>
-          <boxGeometry args={[0.7, 1.6, 0.08]} />
+          <SoftBoxGeometry args={[0.7, 1.6, 0.08]} />
           <meshStandardMaterial color="#4A3728" roughness={0.9} />
         </mesh>
       </group>

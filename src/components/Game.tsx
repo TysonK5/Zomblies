@@ -12,6 +12,7 @@ import { HitMarkers } from './HitMarkers'
 import { DamageNumbers } from './DamageNumbers'
 import { nextTimeOfDay, type TimeOfDay } from '../environment/timeOfDay'
 import { getBinding, isRebinding } from '../game/keybindings'
+import { audioManager } from '../game/audioManager'
 import './Game.css'
 
 function Crosshair() {
@@ -32,23 +33,13 @@ export function Game() {
 
   const onLockChange = useCallback((v: boolean) => setLocked(v), [])
 
-  // Cycle day / twilight / night (remappable)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.repeat || isRebinding()) return
-      if (e.metaKey || e.ctrlKey || e.altKey) return
-      if (e.code === getBinding('cycleTimeOfDay')) {
-        e.preventDefault()
-        setTimeOfDay((t) => nextTimeOfDay(t))
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
-
   const startPlay = useCallback(() => {
     const el = canvasEl.current
     if (!el) return
+
+    // Unlock audio on the same user gesture (browser autoplay policy)
+    void audioManager.ensureRunning()
+    audioManager.play('ui_click', { volume: 0.35 })
 
     const lock = el.requestPointerLock?.()
     if (lock && typeof (lock as Promise<void>).then === 'function') {
@@ -64,6 +55,34 @@ export function Game() {
     }, 250)
   }, [])
 
+  // Cycle day/night; Esc in menu = save (already live) + exit menu back to play
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.repeat) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+
+      // Esc while rebinding is handled by KeybindSettings (cancel only)
+      if (e.code === 'Escape') {
+        if (isRebinding()) return
+        // In menu: settings already persist on change — Esc resumes play
+        if (!locked) {
+          e.preventDefault()
+          startPlay()
+        }
+        // In play: browser drops pointer lock → menu reopens via onLockChange
+        return
+      }
+
+      if (isRebinding()) return
+      if (e.code === getBinding('cycleTimeOfDay')) {
+        e.preventDefault()
+        setTimeOfDay((t) => nextTimeOfDay(t))
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [locked, startPlay])
+
   return (
     <div className="game-root">
       <Canvas
@@ -75,13 +94,20 @@ export function Game() {
           canvasEl.current = gl.domElement
         }}
       >
+        {/*
+          Keep Player outside any Suspense that may re-suspend (e.g. drei Text
+          font load on first damage number). Shared Suspense was remounting
+          Player and re-running its spawn useEffect on first gunshot.
+        */}
         <Suspense fallback={null}>
           <Environment timeOfDay={timeOfDay} />
           <FarmMap />
-          <HitMarkers />
-          <DamageNumbers />
-          <Player onLockChange={onLockChange} />
         </Suspense>
+        <HitMarkers />
+        <Suspense fallback={null}>
+          <DamageNumbers />
+        </Suspense>
+        <Player onLockChange={onLockChange} />
       </Canvas>
 
       {/* HUD */}

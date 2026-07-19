@@ -30,8 +30,26 @@ export type WeaponDef = {
   /** Time to insert one shell when shellReload */
   shellReloadTime?: number
   pellets?: number
-  /** Radians cone half-angle-ish spread */
+  /**
+   * Cone half-angle in radians.
+   * With circularSpread: uniform disk inside this cone.
+   * Without: legacy axis jitter.
+   */
   spread?: number
+  /** Uniform circular pellet distribution inside the cone (shotguns) */
+  circularSpread?: boolean
+  /**
+   * Linear damage falloff by hit distance (meters / world units).
+   * fullRange → 100%, midRange → midMul, beyond → farMul.
+   */
+  damageFalloff?: {
+    fullRange: number
+    midRange: number
+    midMul: number
+    farMul: number
+  }
+  /** Horizontal knockback impulse on zombies (units/sec, scaled per pellet) */
+  hitImpulse?: number
   /** Slot key 1–7 */
   slot: number
 }

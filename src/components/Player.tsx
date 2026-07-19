@@ -20,11 +20,17 @@ import { WeaponView } from '../weapons/WeaponView'
 import { weaponState } from '../weapons/weaponState'
 import { fireWeapon } from '../weapons/combat'
 import { WEAPONS } from '../weapons/definitions'
+import { audioManager, fireSoundForWeapon } from '../game/audioManager'
 import { PlayerAvatar } from './PlayerAvatar'
 
 const LOOK_SENSITIVITY = 0.002
 const GRAVITY = 18
 const JUMP_VELOCITY = 6.5
+
+/** Session spawn defaults — survive Player remounts (e.g. Suspense font load). */
+const SPAWN_X = 0
+const SPAWN_Z = 16
+let sessionSpawnDone = false
 
 type PlayerProps = {
   onLockChange?: (locked: boolean) => void
@@ -47,24 +53,44 @@ export function Player({ onLockChange }: PlayerProps) {
   const mouseButtons = useRef<Record<string, boolean>>({})
   const gameTime = useRef(0)
   /** Feet on ground plane (+ jump) */
-  const feet = useRef(new THREE.Vector3(0, 0, 16))
+  const feet = useRef(new THREE.Vector3(SPAWN_X, 0, SPAWN_Z))
   const bodyYaw = useRef(0)
   const moving = useRef(false)
   const sprinting = useRef(false)
   const [cameraMode, setCameraModeState] = useState<CameraMode>(() => getCameraMode())
-  const camSmooth = useRef(new THREE.Vector3(0, EYE_HEIGHT, 16))
+  const camSmooth = useRef(new THREE.Vector3(SPAWN_X, EYE_HEIGHT, SPAWN_Z))
+  const footstepAcc = useRef(0)
+  const forward = useRef(new THREE.Vector3())
+  const right = useRef(new THREE.Vector3())
+  const camTarget = useRef(new THREE.Vector3())
+  const lookAt = useRef(new THREE.Vector3())
+  const desiredCam = useRef(new THREE.Vector3())
 
   useEffect(() => subscribeCameraMode(setCameraModeState), [])
 
+  // Pose init only — never re-teleport if this effect re-runs or Player remounts mid-session
   useEffect(() => {
-    const spawn = moveAndCollide(0, 16, PLAYER_RADIUS, 0, 0, collisionWorld.queryStatic())
-    const groundY = getGroundHeight(spawn.x, spawn.z)
-    feet.current.set(spawn.x, groundY, spawn.z)
-    camSmooth.current.set(spawn.x, groundY + EYE_HEIGHT, spawn.z)
-    camera.position.copy(camSmooth.current)
     camera.rotation.order = 'YXZ'
-    playerState.update(0, spawn.x, spawn.z)
+    if (!sessionSpawnDone) {
+      const spawn = moveAndCollide(SPAWN_X, SPAWN_Z, PLAYER_RADIUS, 0, 0, collisionWorld.queryStatic())
+      const groundY = getGroundHeight(spawn.x, spawn.z)
+      feet.current.set(spawn.x, groundY, spawn.z)
+      camSmooth.current.set(spawn.x, groundY + EYE_HEIGHT, spawn.z)
+      camera.position.copy(camSmooth.current)
+      playerState.update(0, spawn.x, spawn.z)
+      sessionSpawnDone = true
+    } else {
+      // Remount mid-game: restore last known playerState position
+      const gx = playerState.x
+      const gz = playerState.z
+      const groundY = getGroundHeight(gx, gz)
+      feet.current.set(gx, groundY, gz)
+      camSmooth.current.set(gx, groundY + EYE_HEIGHT, gz)
+      camera.position.copy(camSmooth.current)
+    }
+  }, [camera])
 
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (isRebinding()) return
       keys.current[e.code] = true
@@ -158,7 +184,7 @@ export function Player({ onLockChange }: PlayerProps) {
       document.removeEventListener('wheel', onWheel)
       gl.domElement.removeEventListener('click', onClick)
     }
-  }, [camera, gl, onLockChange])
+  }, [gl, onLockChange])
 
   const getAvatarPose = useCallback(
     () => ({
@@ -190,13 +216,13 @@ export function Player({ onLockChange }: PlayerProps) {
 
     // Movement relative to look yaw (horizontal)
     direction.current.set(0, 0, 0)
-    const forward = new THREE.Vector3(-Math.sin(yaw.current), 0, -Math.cos(yaw.current))
-    const right = new THREE.Vector3(-forward.z, 0, forward.x)
+    forward.current.set(-Math.sin(yaw.current), 0, -Math.cos(yaw.current))
+    right.current.set(-forward.current.z, 0, forward.current.x)
 
-    if (down(b.moveForward)) direction.current.add(forward)
-    if (down(b.moveBack)) direction.current.sub(forward)
-    if (down(b.moveLeft)) direction.current.sub(right)
-    if (down(b.moveRight)) direction.current.add(right)
+    if (down(b.moveForward)) direction.current.add(forward.current)
+    if (down(b.moveBack)) direction.current.sub(forward.current)
+    if (down(b.moveLeft)) direction.current.sub(right.current)
+    if (down(b.moveRight)) direction.current.add(right.current)
 
     const hasMove = direction.current.lengthSq() > 0
     if (hasMove) direction.current.normalize()
@@ -256,6 +282,18 @@ export function Player({ onLockChange }: PlayerProps) {
     verticalVel.current = foot.verticalVel
     grounded.current = foot.grounded
 
+    // Footsteps while moving on ground
+    if (hasMove && foot.grounded) {
+      const stepRate = sprint ? 5.5 : 3.6
+      footstepAcc.current += dt * stepRate
+      if (footstepAcc.current >= 1) {
+        footstepAcc.current = 0
+        audioManager.play('footstep', { volume: sprint ? 0.35 : 0.22 })
+      }
+    } else {
+      footstepAcc.current = 0
+    }
+
     // Body faces move direction (model +Z). Idle TPS: face look direction.
     if (hasMove) {
       const targetYaw = Math.atan2(direction.current.x, direction.current.z)
@@ -278,12 +316,8 @@ export function Player({ onLockChange }: PlayerProps) {
 
     // ── Camera ──────────────────────────────────────────────────────
     if (mode === 'first') {
-      const target = new THREE.Vector3(
-        feet.current.x,
-        feet.current.y + EYE_HEIGHT,
-        feet.current.z,
-      )
-      camSmooth.current.lerp(target, 1 - Math.exp(-dt * 30))
+      camTarget.current.set(feet.current.x, feet.current.y + EYE_HEIGHT, feet.current.z)
+      camSmooth.current.lerp(camTarget.current, 1 - Math.exp(-dt * 30))
       camera.position.copy(camSmooth.current)
       camera.rotation.order = 'YXZ'
       camera.rotation.y = yaw.current
@@ -291,29 +325,24 @@ export function Player({ onLockChange }: PlayerProps) {
       camera.rotation.z = 0
     } else {
       // Third person: orbit behind look pivot
-      const lookAt = new THREE.Vector3(
-        feet.current.x,
-        feet.current.y + TPS.lookHeight,
-        feet.current.z,
-      )
+      lookAt.current.set(feet.current.x, feet.current.y + TPS.lookHeight, feet.current.z)
       const dist = TPS.distance
       const cp = Math.cos(pitch.current)
       const sp = Math.sin(pitch.current)
       const cy = Math.cos(yaw.current)
       const sy = Math.sin(yaw.current)
-      // Camera sits opposite look direction
-      const desired = new THREE.Vector3(
-        lookAt.x + sy * cp * dist,
-        lookAt.y + sp * dist + 0.35,
-        lookAt.z + cy * cp * dist,
+      desiredCam.current.set(
+        lookAt.current.x + sy * cp * dist,
+        lookAt.current.y + sp * dist + 0.35,
+        lookAt.current.z + cy * cp * dist,
       )
 
       // Soft pull-in near ground
-      if (desired.y < 0.4) desired.y = 0.4
+      if (desiredCam.current.y < 0.4) desiredCam.current.y = 0.4
 
-      camSmooth.current.lerp(desired, 1 - Math.exp(-dt * TPS.follow))
+      camSmooth.current.lerp(desiredCam.current, 1 - Math.exp(-dt * TPS.follow))
       camera.position.copy(camSmooth.current)
-      camera.lookAt(lookAt)
+      camera.lookAt(lookAt.current)
     }
 
     // Fire whenever pointer is locked (or fire key is a keyboard bind without needing lock for held keys)
@@ -325,9 +354,20 @@ export function Player({ onLockChange }: PlayerProps) {
         weaponState.cancelReload()
       }
 
+      const phaseBefore = weaponState.phase
       const fired = weaponState.tryFire(now)
       if (fired) {
+        audioManager.play(fireSoundForWeapon(def.id))
         fireWeapon(camera, def, true)
+      } else if (
+        def.kind === 'gun' &&
+        weaponState.runtime.loaded <= 0 &&
+        weaponState.runtime.reserve <= 0 &&
+        weaponState.phase === 'fire' &&
+        phaseBefore !== 'fire'
+      ) {
+        // Dry-fire click when completely empty
+        audioManager.play('empty')
       }
       // Empty + reserve is handled inside tryFire → tryReload
     }

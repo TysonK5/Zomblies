@@ -102,7 +102,8 @@ export function SettingsPanel() {
       <KeybindSettings />
 
       <p className="settings-note">
-        Changes apply immediately. Press Esc during play to reopen this menu.
+        Settings save automatically. Press <kbd>Esc</kbd> to save &amp; return to play (Esc in-game
+        reopens this menu).
       </p>
     </div>
   )

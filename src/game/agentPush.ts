@@ -136,6 +136,23 @@ export function clearZombiePush(id: string) {
 }
 
 /**
+ * Weapon / explosion knockback — adds horizontal velocity to a zombie
+ * (read by ZombieAI each frame via getZombiePush).
+ */
+export function applyHitImpulse(id: string, vx: number, vz: number, maxSpd = 14) {
+  const cur = zombiePush.get(id) ?? { vx: 0, vz: 0 }
+  let nvx = cur.vx + vx
+  let nvz = cur.vz + vz
+  const spd = Math.hypot(nvx, nvz)
+  if (spd > maxSpd) {
+    const s = maxSpd / spd
+    nvx *= s
+    nvz *= s
+  }
+  zombiePush.set(id, { vx: nvx, vz: nvz })
+}
+
+/**
  * After player intends a move, resolve soft 50/50 contacts with all zombies.
  * Returns adjusted player position + velocity. Writes push into zombiePush map.
  *

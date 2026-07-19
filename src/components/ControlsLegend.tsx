@@ -38,7 +38,7 @@ export function ControlsLegend() {
       </li>
       <li>Scroll cycle weapons · Mouse look</li>
       <li>
-        <kbd>Esc</kbd> Menu / settings
+        <kbd>Esc</kbd> Menu · Esc again to save &amp; play
       </li>
     </ul>
   )

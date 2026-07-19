@@ -17,7 +17,7 @@ export type GameSettings = {
 export const DEFAULT_GAME_SETTINGS: GameSettings = {
   maxZombies: 12,
   // Historical default: 60% of player max (6 * 1.65 * 0.6)
-  zombieRunSpeed: 5.94,
+  zombieRunSpeed: 3.0,
   playerWalkSpeed: 6,
   playerRunSpeed: 9.9,
 }

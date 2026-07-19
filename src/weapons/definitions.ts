@@ -48,7 +48,9 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     startReserve: 24,
     reloadTime: 2.1,
     pellets: 8,
+    /** ~6.9° half-angle circular cone (center + ring) */
     spread: 0.12,
+    circularSpread: true,
     slot: 3,
   },
   lever22: {
@@ -65,20 +67,36 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     spread: 0.012,
     slot: 4,
   },
+  /**
+   * Combat pump shotgun — Sketchfab-style pump-action silhouette.
+   * 5-pellet circular blast (center + ring), same cone style as double barrel.
+   */
   pump_shotgun: {
     id: 'pump_shotgun',
-    name: 'Pump Shotgun',
+    name: 'Combat Pump',
     kind: 'gun',
-    damage: 14,
-    range: 32,
-    fireCooldown: 0.72,
+    /** Per-pellet damage; 5 pellets per shell */
+    damage: 16,
+    range: 36,
+    /** Slow cyclic rate — power over spam */
+    fireCooldown: 0.85,
     magazineSize: 6,
     startReserve: 36,
     reloadTime: 0.55,
     shellReload: true,
     shellReloadTime: 0.55,
-    pellets: 7,
-    spread: 0.09,
+    pellets: 5,
+    /** Same circular cone half-angle as double barrel */
+    spread: 0.12,
+    circularSpread: true,
+    damageFalloff: {
+      fullRange: 5,
+      midRange: 15,
+      midMul: 0.4,
+      farMul: 0.05,
+    },
+    /** High back-kick stagger per pellet (stacks within a shot) */
+    hitImpulse: 2.8,
     slot: 5,
   },
   /**

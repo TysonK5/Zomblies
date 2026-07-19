@@ -112,6 +112,72 @@ README.md                 # Quick start
 
 ---
 
+### 2026-07-19 — Perf quick wins (combat + markers + cleanup)
+
+**Type:** Refactor  
+**Prompt / request:** Next: aggregate shotgun feedback, pool hit markers, quarantine WIP, reuse vectors, cache matrix invert.  
+**Status:** Done
+
+**Changes**
+- Multi-pellet shots aggregate wounds, damage numbers, hit SFX, and impulse **once per zombie**
+- Hit markers: imperative object pool (96) + shared geoms, no React-per-decal `useFrame`
+- Moved unused systems to `src/_wip/` (excluded from TS compile)
+- Player reuses camera/move `Vector3`s each frame
+- Zombie `worldToLocalDir` caches inverted `matrixWorld` once per frame; HP bar UI batched via microtask
+
+**Files touched**
+- `src/weapons/combat.ts`, `hitMarkers.ts`, `damageables.ts`
+- `src/components/HitMarkers.tsx`, `Player.tsx`
+- `src/zombie/ZombieAI.tsx`
+- `src/_wip/*`, `tsconfig.app.json`
+- `PROGRESS.md`
+
+---
+
+### 2026-07-19 — In-game SFX (Kenney CC0)
+
+**Type:** Feature  
+**Prompt / request:** Add free open-source game sounds (Kenney / freesound-class libraries).  
+**Status:** Done
+
+**Changes**
+- Bundled Kenney CC0 samples under `public/sounds/` (impact, RPG, interface packs)
+- Audio manager loads OGG buffers with synth fallback; unlocks on Click to play
+- Wired: fire (per weapon family), empty, reload, pump/lever, equip, zombie hit/death/groan, world hit, footsteps, UI click
+
+**Files touched**
+- `public/sounds/*`, `src/game/audioManager.ts`
+- `src/components/Player.tsx`, `Game.tsx`
+- `src/weapons/weaponState.ts`, `combat.ts`
+- `src/zombie/ZombieAI.tsx`
+- `PROGRESS.md`
+
+---
+
+### 2026-07-18 — Combat Pump shotgun overhaul
+
+**Type:** Feature  
+**Prompt / request:** High-impact pump shotgun (Sketchfab-inspired mesh, 8-pellet cone, falloff, impulse, 3-part muzzle FX).  
+**Status:** Done
+
+**Changes**
+- Rebuilt pump as “Combat Pump”: forend, bottom loading gate, side ejection port, blued steel + scuffed wood
+- FPS lower-third hold so barrel + ejection port read clearly
+- 8 pellets, circular uniform 5° cone; falloff 100% ≤5m / 40% 5–15m / 5% 15m+
+- Hit impulse knockback on zombies; wood/concrete/dirt impact debris
+- Three-part muzzle flash (0.08s core + side vents) + 1.5s smoke billow + 1-frame warm point light
+
+**Files touched**
+- `src/weapons/types.ts`, `definitions.ts`, `combat.ts`, `WeaponModels.tsx`, `WeaponView.tsx`, `weaponAnims.ts`, `hitMarkers.ts`
+- `src/components/HitMarkers.tsx`
+- `src/game/agentPush.ts`, `keybindings.ts`
+- `PROGRESS.md`
+
+**Notes**
+- Ref: https://sketchfab.com/3d-models/pump-action-shotgun-rigged-9a183419e5844b7e942ca63dbfd2416b
+
+---
+
 ### 2026-07-18 — Bullet holes + blood on zombie hits
 
 **Type:** Feature  

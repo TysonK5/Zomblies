@@ -4,6 +4,11 @@
  */
 
 import { damageables } from './damageables'
+import {
+  distToBoxSurface,
+  limbVisualHalfForPose,
+  type LimbId,
+} from './limbs'
 
 export type HitSurface =
   | 'world'
@@ -12,6 +17,9 @@ export type HitSurface =
   | 'blood_splat' // sticky red pool around wound
   | 'blood_mist' // brief expanding puff
   | 'blood_spray' // short-lived flying droplets
+  | 'debris_wood'
+  | 'debris_concrete'
+  | 'debris_dirt'
 
 export type HitMarker = {
   id: number
@@ -50,8 +58,8 @@ type Listener = () => void
 let nextId = 1
 const markers: HitMarker[] = []
 const listeners = new Set<Listener>()
-/** Allow wrap bands + stacked wounds on packs of zombies */
-const MAX_MARKERS = 220
+/** Pool-aligned cap (imperative renderer uses 96 slots) */
+const MAX_MARKERS = 96
 
 function emit() {
   for (const fn of listeners) fn()
@@ -120,17 +128,19 @@ function rotateYaw(nx: number, ny: number, nz: number, yaw: number) {
 function defaultLife(surface: HitSurface): number {
   if (surface === 'blood_mist') return 0.4
   if (surface === 'blood_spray') return 0.55
+  if (surface.startsWith('debris_')) return 0.55
   if (surface === 'bullet_hole') return 45
   if (surface === 'blood_splat' || surface === 'flesh') return 35
   return 14 // world
 }
 
 function defaultScale(surface: HitSurface): number {
-  if (surface === 'bullet_hole') return 0.07
-  if (surface === 'blood_splat' || surface === 'flesh') return 0.16
-  if (surface === 'blood_mist') return 0.22
-  if (surface === 'blood_spray') return 0.04
-  return 0.09
+  if (surface === 'bullet_hole') return 0.028
+  if (surface === 'blood_splat' || surface === 'flesh') return 0.04
+  if (surface === 'blood_mist') return 0.1
+  if (surface === 'blood_spray') return 0.018
+  if (surface.startsWith('debris_')) return 0.028
+  return 0.04 // world hole
 }
 
 export function spawnHitMarker(opts: {
@@ -178,8 +188,8 @@ export function spawnHitMarker(opts: {
     vz: opts.vz,
   }
 
-  // Sticky attach for wound layers (not free spray)
-  if (opts.attachId && opts.surface !== 'blood_spray') {
+  // Sticky attach for wound layers (not free spray / debris)
+  if (opts.attachId && opts.surface !== 'blood_spray' && !opts.surface.startsWith('debris_')) {
     const body = damageables.get(opts.attachId)
     if (body) {
       const p = body.getPosition()
@@ -213,38 +223,15 @@ export function spawnHitMarker(opts: {
   emit()
 }
 
-/** Rodrigues rotation of vector v around unit axis k by angle (radians). */
-function rotateAroundAxis(
-  vx: number,
-  vy: number,
-  vz: number,
-  kx: number,
-  ky: number,
-  kz: number,
-  angle: number,
-): { x: number; y: number; z: number } {
-  const c = Math.cos(angle)
-  const s = Math.sin(angle)
-  const dot = vx * kx + vy * ky + vz * kz
-  // v cos + (k×v) sin + k (k·v) (1−cos)
-  const cx = ky * vz - kz * vy
-  const cy = kz * vx - kx * vz
-  const cz = kx * vy - ky * vx
-  return {
-    x: vx * c + cx * s + kx * dot * (1 - c),
-    y: vy * c + cy * s + ky * dot * (1 - c),
-    z: vz * c + cz * s + kz * dot * (1 - c),
-  }
-}
-
 function normalize3(x: number, y: number, z: number) {
   const l = Math.hypot(x, y, z) || 1
   return { x: x / l, y: y / l, z: z / l }
 }
 
 /**
- * Layered wound FX that WRAPS around the hit limb sphere:
- * dark hole at impact + ring of flat blood patches following the surface.
+ * Layered wound FX that WRAPS around the hit limb visual surface:
+ * dark hole at impact + ring of flat blood patches on the soft-box skin.
+ * Hit spheres stay large for aim-feel; decals project onto SoftBox half-extents.
  */
 export function spawnZombieWoundFx(opts: {
   x: number
@@ -260,44 +247,88 @@ export function spawnZombieWoundFx(opts: {
   cz?: number
   /** Limb hit-sphere radius */
   radius?: number
+  /** Which limb was hit — drives visual box half-extents */
+  limb?: LimbId
   /** head hits are larger / bloodier */
   head?: boolean
   /** melee leaves a wider slash-like splat */
   melee?: boolean
+  /** Fewer wrap patches (multi-pellet aggregation) */
+  compact?: boolean
 }) {
   const { x, y, z, attachId } = opts
-  const head = !!opts.head
+  const head = !!opts.head || opts.limb === 'head'
   const melee = !!opts.melee
-  const n0 = normalize3(opts.nx, opts.ny, opts.nz)
-  let nnx = n0.x
-  let nny = n0.y
-  let nnz = n0.z
+  const compact = !!opts.compact
+  const limb: LimbId = opts.limb ?? (head ? 'head' : 'torso')
+  const body = damageables.get(attachId)
+  const crawling = !!body?.crawling
+  const hitR = Math.max(0.08, opts.radius ?? 0.16)
 
-  // Sphere center + radius so blood can wrap the curved limb surface
-  const R = Math.max(0.08, opts.radius ?? 0.16)
+  // Resolve impact normal + limb center in world
+  let nnx = opts.nx
+  let nny = opts.ny
+  let nnz = opts.nz
   let cx = opts.cx
   let cy = opts.cy
   let cz = opts.cz
+  {
+    const n0 = normalize3(nnx, nny, nnz)
+    nnx = n0.x
+    nny = n0.y
+    nnz = n0.z
+  }
   if (cx == null || cy == null || cz == null) {
-    // Reconstruct from hit point + normal
-    cx = x - nnx * R
-    cy = y - nny * R
-    cz = z - nnz * R
+    cx = x - nnx * hitR
+    cy = y - nny * hitR
+    cz = z - nnz * hitR
   } else {
-    // Re-project hit onto sphere so normal matches the limb surface
-    let dx = x - cx
-    let dy = y - cy
-    let dz = z - cz
+    const dx = x - cx
+    const dy = y - cy
+    const dz = z - cz
     const dl = Math.hypot(dx, dy, dz) || 1
     nnx = dx / dl
     nny = dy / dl
     nnz = dz / dl
   }
 
-  const lift = 0.012
-  const ox = cx + nnx * (R + lift)
-  const oy = cy + nny * (R + lift)
-  const oz = cz + nnz * (R + lift)
+  // Project onto visual soft-box in root-local axes (matches SoftBoxGeometry)
+  const half = limbVisualHalfForPose(limb, crawling)
+  let lnx = nnx
+  let lny = nny
+  let lnz = nnz
+  if (body?.worldToLocalDir) {
+    const d = body.worldToLocalDir(nnx, nny, nnz)
+    lnx = d.x
+    lny = d.y
+    lnz = d.z
+  }
+  const skin = 0.0015
+  const surfaceR = distToBoxSurface(lnx, lny, lnz, half.x, half.y, half.z)
+  const ox = cx + nnx * (surfaceR + skin)
+  const oy = cy + nny * (surfaceR + skin)
+  const oz = cz + nnz * (surfaceR + skin)
+
+  // Small sticky decals only — one hole + one blood ring, both on the mesh surface.
+  // No wrap-around patches (those floated off thin limbs / looked like free circles).
+  const holeScale = melee
+    ? head
+      ? 0.042
+      : 0.034
+    : head
+      ? 0.032
+      : compact
+        ? 0.024
+        : 0.026
+  const splatScale = melee
+    ? head
+      ? 0.055
+      : 0.045
+    : head
+      ? 0.042
+      : compact
+        ? 0.032
+        : 0.036
 
   // ── Impact hole (on impact face only) ───────────────────────────
   spawnHitMarker({
@@ -308,137 +339,54 @@ export function spawnZombieWoundFx(opts: {
     ny: nny,
     nz: nnz,
     surface: 'bullet_hole',
-    scale: Math.min(R * 0.55, melee ? (head ? 0.12 : 0.09) : head ? 0.085 : 0.055),
+    scale: holeScale,
     attachId,
   })
 
-  // Central sticky blood under the hole
+  // Central sticky blood under the hole (same surface only)
   spawnHitMarker({
-    x: ox + nnx * 0.004,
-    y: oy + nny * 0.004,
-    z: oz + nnz * 0.004,
+    x: ox,
+    y: oy,
+    z: oz,
     nx: nnx,
     ny: nny,
     nz: nnz,
     surface: 'blood_splat',
-    scale: Math.min(R * 0.95, melee ? (head ? 0.16 : 0.12) : head ? 0.13 : 0.09),
+    scale: splatScale,
     attachId,
   })
 
-  // ── Wrap band: flat circles on the sphere surface around the hit ─
-  // Limb axis ≈ world up for torso/head; still works for limbs (wraps around).
-  let ax = 0
-  let ay = 1
-  let az = 0
-  if (Math.abs(nnx * ax + nny * ay + nnz * az) > 0.85) {
-    ax = 1
-    ay = 0
-    az = 0
-  }
-  // Make axis orthogonal enough for stable rotation
-  {
-    const a = normalize3(ax, ay, az)
-    ax = a.x
-    ay = a.y
-    az = a.z
-  }
-
-  // Second axis so we wrap in two directions (around the limb)
-  const t = normalize3(
-    ay * nnz - az * nny,
-    az * nnx - ax * nnz,
-    ax * nny - ay * nnx,
-  )
-
-  // Angular steps around the limb (radians) — larger arc for head/melee
-  const wrapSpan = head ? 1.35 : melee ? 1.15 : 0.95
-  const wrapSteps = head || melee ? 5 : 4
-  const wrapPatchScale = Math.min(R * 0.7, head ? 0.1 : melee ? 0.085 : 0.065)
-
-  for (let i = 0; i < wrapSteps; i++) {
-    // Skip exact 0 — already covered by center splat
-    const u = (i + 1) / (wrapSteps + 1)
-    // Alternate left/right around limb axis
-    const sign = i % 2 === 0 ? 1 : -1
-    const ang = sign * wrapSpan * u
-
-    const n1 = rotateAroundAxis(nnx, nny, nnz, ax, ay, az, ang)
-    const nl = Math.hypot(n1.x, n1.y, n1.z) || 1
-    const nx1 = n1.x / nl
-    const ny1 = n1.y / nl
-    const nz1 = n1.z / nl
-    const fade = 1 - u * 0.35
-
-    spawnHitMarker({
-      x: cx + nx1 * (R + lift),
-      y: cy + ny1 * (R + lift),
-      z: cz + nz1 * (R + lift),
-      nx: nx1,
-      ny: ny1,
-      nz: nz1,
-      surface: 'blood_splat',
-      scale: wrapPatchScale * fade * (0.85 + Math.random() * 0.25),
-      attachId,
-    })
-  }
-
-  // Secondary wrap around the cross-axis (covers top/bottom of the limb)
-  const wrapSteps2 = head || melee ? 3 : 2
-  for (let i = 0; i < wrapSteps2; i++) {
-    const u = (i + 1) / (wrapSteps2 + 1)
-    const sign = i % 2 === 0 ? 1 : -1
-    const ang = sign * wrapSpan * 0.75 * u
-    const n2 = rotateAroundAxis(nnx, nny, nnz, t.x, t.y, t.z, ang)
-    const nl = Math.hypot(n2.x, n2.y, n2.z) || 1
-    const nx2 = n2.x / nl
-    const ny2 = n2.y / nl
-    const nz2 = n2.z / nl
-    const fade = 1 - u * 0.4
-
-    spawnHitMarker({
-      x: cx + nx2 * (R + lift),
-      y: cy + ny2 * (R + lift),
-      z: cz + nz2 * (R + lift),
-      nx: nx2,
-      ny: ny2,
-      nz: nz2,
-      surface: 'blood_splat',
-      scale: wrapPatchScale * 0.85 * fade * (0.85 + Math.random() * 0.2),
-      attachId,
-    })
-  }
-
-  // Expanding mist puff at impact (not a surface wrap)
+  // Brief mist off the surface (not a sticky circle on empty space)
   spawnHitMarker({
-    x: ox + nnx * 0.05,
-    y: oy + nny * 0.05,
-    z: oz + nnz * 0.05,
+    x: ox + nnx * 0.02,
+    y: oy + nny * 0.02,
+    z: oz + nnz * 0.02,
     nx: nnx,
     ny: nny,
     nz: nnz,
     surface: 'blood_mist',
-    scale: head ? 0.28 : melee ? 0.22 : 0.16,
-    life: head ? 0.5 : 0.35,
+    scale: head ? 0.12 : melee ? 0.1 : 0.07,
+    life: head ? 0.4 : 0.28,
     attachId,
   })
 
-  // Flying droplets away from impact face
-  const drops = head ? 6 : melee ? 4 : 2 + Math.floor(Math.random() * 2)
+  // Flying droplets (particles — fade out; do not leave large free-floating circles)
+  const drops = compact ? (head ? 2 : 1) : head ? 4 : melee ? 3 : 1 + Math.floor(Math.random() * 2)
   for (let i = 0; i < drops; i++) {
-    const spread = 1.1 + Math.random() * 2
-    const speed = (head ? 2.2 : 1.4) + Math.random() * 2.2
+    const spread = 0.9 + Math.random() * 1.4
+    const speed = (head ? 1.8 : 1.2) + Math.random() * 1.6
     spawnHitMarker({
-      x: ox + nnx * 0.03,
-      y: oy + nny * 0.03,
-      z: oz + nnz * 0.03,
+      x: ox + nnx * 0.012,
+      y: oy + nny * 0.012,
+      z: oz + nnz * 0.012,
       nx: nnx,
       ny: nny,
       nz: nnz,
       surface: 'blood_spray',
-      scale: 0.022 + Math.random() * 0.03,
-      life: 0.3 + Math.random() * 0.3,
+      scale: 0.012 + Math.random() * 0.014,
+      life: 0.22 + Math.random() * 0.2,
       vx: nnx * speed + (Math.random() - 0.5) * spread,
-      vy: nny * speed * 0.45 + 0.7 + Math.random() * 1.4,
+      vy: nny * speed * 0.4 + 0.5 + Math.random() * 1.0,
       vz: nnz * speed + (Math.random() - 0.5) * spread,
     })
   }
@@ -494,7 +442,8 @@ export function tickHitMarkers(dt: number) {
   for (let i = markers.length - 1; i >= 0; i--) {
     const m = markers[i]!
 
-    if (m.surface === 'blood_spray' && (m.vx != null || m.vy != null || m.vz != null)) {
+    const flying = m.surface === 'blood_spray' || m.surface.startsWith('debris_')
+    if (flying && (m.vx != null || m.vy != null || m.vz != null)) {
       m.vx = (m.vx ?? 0) * (1 - Math.min(1, dt * 1.5))
       m.vy = (m.vy ?? 0) - 9.5 * dt
       m.vz = (m.vz ?? 0) * (1 - Math.min(1, dt * 1.5))
@@ -510,11 +459,15 @@ export function tickHitMarkers(dt: number) {
         m.nx = 0
         m.ny = 1
         m.nz = 0
-        // Convert to short-lived ground splat
+        // Tiny ground dab only — sticky circles stay on hit assets, not free air
         if (m.surface === 'blood_spray') {
           m.surface = 'blood_splat'
-          m.scale *= 1.8
-          m.life = Math.min(m.life, 2.5)
+          m.scale = Math.min(m.scale * 1.35, 0.028)
+          m.life = Math.min(m.life, 1.6)
+          m.maxLife = m.life
+        } else {
+          // Debris settles and fades quickly
+          m.life = Math.min(m.life, 0.6)
           m.maxLife = m.life
         }
       }

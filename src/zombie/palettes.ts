@@ -53,7 +53,8 @@ export const ACCENT_COLORS = [
 export const HEAD_OPTIONS = ['none', 'cap', 'straw_hat', 'bandana', 'hard_hat'] as const
 export const FACE_OPTIONS = ['none', 'eyepatch', 'scar', 'jaw_missing'] as const
 export const TORSO_OPTIONS = ['none', 'overalls', 'vest', 'apron'] as const
-export const HAND_OPTIONS = ['none', 'pitchfork', 'shovel', 'board'] as const
+/** Zombies do not carry tools — hands always empty */
+export const HAND_OPTIONS = ['none'] as const
 export const FEET_OPTIONS = ['boots', 'bare', 'mismatched'] as const
 
 function pick<T>(arr: readonly T[], seed: number, salt: number): T {
@@ -67,7 +68,7 @@ export function randomAppearance(seed = Math.random()): ZombieAppearance {
     head: pick(HEAD_OPTIONS, seed, 1),
     face: pick(FACE_OPTIONS, seed, 2),
     torso: pick(TORSO_OPTIONS, seed, 3),
-    hand: pick(HAND_OPTIONS, seed, 4),
+    hand: 'none',
     feet: pick(FEET_OPTIONS, seed, 5),
   }
 
@@ -94,7 +95,7 @@ export const PRESETS: Record<string, ZombieAppearance> = {
       head: 'straw_hat',
       face: 'scar',
       torso: 'overalls',
-      hand: 'pitchfork',
+      hand: 'none',
       feet: 'boots',
     },
     seed: 0.11,
@@ -109,7 +110,7 @@ export const PRESETS: Record<string, ZombieAppearance> = {
       head: 'hard_hat',
       face: 'eyepatch',
       torso: 'vest',
-      hand: 'shovel',
+      hand: 'none',
       feet: 'boots',
     },
     seed: 0.42,
@@ -124,7 +125,7 @@ export const PRESETS: Record<string, ZombieAppearance> = {
       head: 'bandana',
       face: 'jaw_missing',
       torso: 'none',
-      hand: 'board',
+      hand: 'none',
       feet: 'mismatched',
     },
     seed: 0.67,

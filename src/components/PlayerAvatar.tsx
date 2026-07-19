@@ -5,6 +5,7 @@ import { WeaponModel } from '../weapons/WeaponModels'
 import { weaponState } from '../weapons/weaponState'
 import type { WeaponId } from '../weapons/types'
 import { sampleThirdPersonWeaponPose } from '../weapons/weaponAnims'
+import { SoftBoxGeometry } from '../geometry/SoftBoxGeometry'
 
 type PlayerAvatarProps = {
   getPose: () => {
@@ -105,43 +106,43 @@ export function PlayerAvatar({ getPose, visible = true }: PlayerAvatarProps) {
     <group ref={root}>
       <group ref={legL} position={[-0.12, HIP_Y, 0]}>
         <mesh position={[0, -HIP_Y * 0.38, 0]} material={pants} castShadow>
-          <boxGeometry args={[0.16, HIP_Y * 0.55, 0.16]} />
+          <SoftBoxGeometry args={[0.16, HIP_Y * 0.55, 0.16]} />
         </mesh>
         <mesh position={[0, -HIP_Y + 0.07, 0.04]} material={boot} castShadow>
-          <boxGeometry args={[0.15, 0.14, 0.24]} />
+          <SoftBoxGeometry args={[0.15, 0.14, 0.24]} />
         </mesh>
       </group>
       <group ref={legR} position={[0.12, HIP_Y, 0]}>
         <mesh position={[0, -HIP_Y * 0.38, 0]} material={pants} castShadow>
-          <boxGeometry args={[0.16, HIP_Y * 0.55, 0.16]} />
+          <SoftBoxGeometry args={[0.16, HIP_Y * 0.55, 0.16]} />
         </mesh>
         <mesh position={[0, -HIP_Y + 0.07, 0.04]} material={boot} castShadow>
-          <boxGeometry args={[0.15, 0.14, 0.24]} />
+          <SoftBoxGeometry args={[0.15, 0.14, 0.24]} />
         </mesh>
       </group>
 
       <mesh position={[0, 1.28, 0]} material={shirt} castShadow>
-        <boxGeometry args={[0.42, 0.5, 0.26]} />
+        <SoftBoxGeometry args={[0.42, 0.5, 0.26]} />
       </mesh>
       <mesh position={[0, 0.98, 0]} material={pants} castShadow>
-        <boxGeometry args={[0.4, 0.2, 0.24]} />
+        <SoftBoxGeometry args={[0.4, 0.2, 0.24]} />
       </mesh>
 
       <group ref={armL} position={[-0.28, 1.42, 0]}>
         <mesh position={[0, -0.22, 0]} material={shirt} castShadow>
-          <boxGeometry args={[0.12, 0.42, 0.12]} />
+          <SoftBoxGeometry args={[0.12, 0.42, 0.12]} />
         </mesh>
         <mesh position={[0, -0.48, 0]} material={skin} castShadow>
-          <boxGeometry args={[0.1, 0.16, 0.1]} />
+          <SoftBoxGeometry args={[0.1, 0.16, 0.1]} />
         </mesh>
       </group>
 
       <group ref={armR} position={[0.28, 1.42, 0]}>
         <mesh position={[0, -0.22, 0]} material={shirt} castShadow>
-          <boxGeometry args={[0.12, 0.42, 0.12]} />
+          <SoftBoxGeometry args={[0.12, 0.42, 0.12]} />
         </mesh>
         <mesh position={[0, -0.48, 0]} material={skin} castShadow>
-          <boxGeometry args={[0.1, 0.16, 0.1]} />
+          <SoftBoxGeometry args={[0.1, 0.16, 0.1]} />
         </mesh>
 
         {/* Identity rotation: WeaponModel world orients barrel along arm −Y */}
@@ -151,10 +152,10 @@ export function PlayerAvatar({ getPose, visible = true }: PlayerAvatarProps) {
       </group>
 
       <mesh position={[0, 1.7, 0]} material={skin} castShadow>
-        <boxGeometry args={[0.28, 0.3, 0.28]} />
+        <SoftBoxGeometry args={[0.28, 0.3, 0.28]} />
       </mesh>
       <mesh position={[0, 1.84, -0.02]} material={hair} castShadow>
-        <boxGeometry args={[0.3, 0.1, 0.28]} />
+        <SoftBoxGeometry args={[0.3, 0.1, 0.28]} />
       </mesh>
     </group>
   )

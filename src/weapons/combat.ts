@@ -6,10 +6,16 @@ import { spawnDamageNumber } from './damageNumbers'
 import { limbLocalForPose, type LimbId } from './limbs'
 import { getStaticWorldColliders } from '../game/worldColliders'
 import { getGroundHeight } from '../game/ground'
+import { applyHitImpulse } from '../game/agentPush'
+import { audioManager } from '../game/audioManager'
 import type { AabbCollider, CircleCollider, Collider } from '../game/collision'
 
 const _origin = new THREE.Vector3()
 const _dir = new THREE.Vector3()
+const _pelletDir = new THREE.Vector3()
+const _right = new THREE.Vector3()
+const _up = new THREE.Vector3()
+const _tmp = new THREE.Vector3()
 
 type HitResult = {
   t: number
@@ -22,11 +28,107 @@ type HitResult = {
   kind: 'world' | 'zombie'
   zombieId?: string
   limb?: LimbId
+  /** Optional surface hint for debris (wood / concrete / ground) */
+  surfaceTag?: string
+}
+
+/**
+ * Damage multiplier by distance for weapons with falloff curves.
+ * 0–fullRange: 100%, full–mid: midMul, beyond mid: farMul.
+ */
+export function damageFalloffMul(def: WeaponDef, dist: number): number {
+  const f = def.damageFalloff
+  if (!f) return 1
+  if (dist <= f.fullRange) return 1
+  if (dist <= f.midRange) return f.midMul
+  return f.farMul
+}
+
+/**
+ * Build orthonormal right/up for a forward aim vector.
+ */
+function aimBasis(forward: THREE.Vector3) {
+  _tmp.set(0, 1, 0)
+  if (Math.abs(forward.dot(_tmp)) > 0.92) _tmp.set(1, 0, 0)
+  _right.crossVectors(forward, _tmp).normalize()
+  _up.crossVectors(_right, forward).normalize()
+}
+
+/**
+ * Uniform circular sample inside a cone of half-angle `halfAngle` (radians)
+ * around `forward`. Uses disk sampling (sqrt for uniform area).
+ */
+function sampleCircularCone(forward: THREE.Vector3, halfAngle: number, out: THREE.Vector3) {
+  aimBasis(forward)
+  const theta = Math.random() * Math.PI * 2
+  const r = halfAngle * Math.sqrt(Math.random())
+  out
+    .copy(forward)
+    .addScaledVector(_right, Math.cos(theta) * r)
+    .addScaledVector(_up, Math.sin(theta) * r)
+    .normalize()
+}
+
+/**
+ * Shotgun pattern: 1 pellet near center + the rest evenly around a ring
+ * with light jitter. Reads as a clear circular blast on walls / targets.
+ */
+function sampleShotgunCircle(
+  forward: THREE.Vector3,
+  halfAngle: number,
+  index: number,
+  count: number,
+  out: THREE.Vector3,
+) {
+  aimBasis(forward)
+  let theta: number
+  let r: number
+  if (count <= 1) {
+    theta = 0
+    r = 0
+  } else if (index === 0) {
+    // Center pellet — small random offset so it isn't a perfect bullseye every shot
+    theta = Math.random() * Math.PI * 2
+    r = halfAngle * 0.12 * Math.sqrt(Math.random())
+  } else {
+    // Evenly spaced ring pellets with slight angular / radial jitter
+    const ringI = index - 1
+    const ringN = count - 1
+    const step = (Math.PI * 2) / ringN
+    theta = ringI * step + (Math.random() - 0.5) * step * 0.35
+    // Mostly outer ring so the circle silhouette is obvious
+    r = halfAngle * (0.55 + Math.random() * 0.45)
+  }
+  out
+    .copy(forward)
+    .addScaledVector(_right, Math.cos(theta) * r)
+    .addScaledVector(_up, Math.sin(theta) * r)
+    .normalize()
+}
+
+type ZombieShotAcc = {
+  dmgTotal: number
+  killed: boolean
+  head: boolean
+  limb: LimbId
+  hx: number
+  hy: number
+  hz: number
+  nx: number
+  ny: number
+  nz: number
+  cx: number
+  cy: number
+  cz: number
+  radius: number
+  impX: number
+  impZ: number
+  pellets: number
 }
 
 /**
  * Hitscan / melee: zombies (per-limb) then world (ground + building boxes).
- * Spawns visible impact markers on every hit.
+ * Multi-pellet weapons aggregate FX / SFX / damage numbers per zombie per shot.
  */
 export function fireWeapon(
   camera: THREE.Camera,
@@ -44,15 +146,28 @@ export function fireWeapon(
   const spread = def.spread ?? 0
   let hits = 0
   const killed: string[] = []
+  const zombieAcc = new Map<string, ZombieShotAcc>()
+  let worldHitSfx = false
+  let worldMarkers = 0
+  // One world decal per pellet so shotgun blasts read as the full pellet count
+  // (was hard-capped at 3, which made multi-pellet guns look like 3-shot patterns)
+  const maxWorldMarkers = pellets
 
   for (let p = 0; p < pellets; p++) {
-    const dir = _dir.clone()
+    const dir = _pelletDir.copy(_dir)
     if (spread > 0) {
-      const mult = pellets > 1 ? 1 : 0.7
-      dir.x += (Math.random() * 2 - 1) * spread * mult
-      dir.y += (Math.random() * 2 - 1) * spread * mult * 0.55
-      dir.z += (Math.random() * 2 - 1) * spread * mult
-      dir.normalize()
+      if (def.circularSpread && pellets > 1) {
+        // Shotguns: even circular ring + center (not a rectangular box)
+        sampleShotgunCircle(_dir, spread, p, pellets, dir)
+      } else if (def.circularSpread) {
+        sampleCircularCone(_dir, spread, dir)
+      } else {
+        const mult = pellets > 1 ? 1 : 0.7
+        dir.x += (Math.random() * 2 - 1) * spread * mult
+        dir.y += (Math.random() * 2 - 1) * spread * mult * 0.55
+        dir.z += (Math.random() * 2 - 1) * spread * mult
+        dir.normalize()
+      }
     }
 
     const hit = raycastAll(_origin, dir, def.range)
@@ -63,7 +178,9 @@ export function fireWeapon(
       const body = damageables.get(hit.zombieId)
       if (!body || body.hp <= 0) continue
 
-      // Limb sphere center + radius so blood patches wrap the curved surface
+      const fallMul = damageFalloffMul(def, hit.t)
+      const dmg = def.damage * fallMul
+
       const layout = limbLocalForPose(!!body.crawling)
       const limbSphere = layout[hit.limb]
       const r = limbSphere.r * (body.crawling ? 1.15 : 1)
@@ -77,63 +194,171 @@ export function fireWeapon(
         cz = c.z
       }
 
-      // Hole + blood band that wraps around the limb/torso sphere
-      spawnZombieWoundFx({
-        x: hit.x,
-        y: hit.y,
-        z: hit.z,
-        nx: hit.nx,
-        ny: hit.ny,
-        nz: hit.nz,
-        cx,
-        cy,
-        cz,
-        radius: r,
-        attachId: hit.zombieId,
-        head: hit.limb === 'head',
-        melee: def.kind === 'melee',
-      })
+      // Apply HP silently — feedback is aggregated after the pellet loop
+      const result = body.applyDamage(
+        dmg,
+        hit.limb,
+        { x: hit.x, y: hit.y, z: hit.z },
+        { silent: true },
+      )
 
-      const result = body.applyDamage(def.damage, hit.limb, {
-        x: hit.x,
-        y: hit.y,
-        z: hit.z,
-      })
-      if (result.hpDamage > 0) {
-        const kind =
-          hit.limb === 'head' ? 'head' : result.killed ? 'kill' : hit.limb === 'torso' ? 'body' : 'limb'
-        // Stick flat on the hit surface (not floating billboard off the body)
-        spawnDamageNumber({
+      let acc = zombieAcc.get(hit.zombieId)
+      if (!acc) {
+        acc = {
+          dmgTotal: 0,
+          killed: false,
+          head: hit.limb === 'head',
+          limb: hit.limb,
+          hx: hit.x,
+          hy: hit.y,
+          hz: hit.z,
+          nx: hit.nx,
+          ny: hit.ny,
+          nz: hit.nz,
+          cx,
+          cy,
+          cz,
+          radius: r,
+          impX: 0,
+          impZ: 0,
+          pellets: 0,
+        }
+        zombieAcc.set(hit.zombieId, acc)
+      }
+      acc.dmgTotal += result.hpDamage
+      acc.pellets += 1
+      if (hit.limb === 'head') acc.head = true
+      // Prefer later torso/head hits for display point; keep first otherwise
+      if (hit.limb === 'head' || hit.limb === 'torso' || acc.pellets === 1) {
+        acc.limb = hit.limb
+        acc.hx = hit.x
+        acc.hy = hit.y
+        acc.hz = hit.z
+        acc.nx = hit.nx
+        acc.ny = hit.ny
+        acc.nz = hit.nz
+        acc.cx = cx
+        acc.cy = cy
+        acc.cz = cz
+        acc.radius = r
+      }
+      if (result.killed) acc.killed = true
+      if (def.hitImpulse && def.hitImpulse > 0) {
+        const imp = def.hitImpulse * fallMul
+        acc.impX += dir.x * imp
+        acc.impZ += dir.z * imp
+      }
+      if (result.killed && !killed.includes(hit.zombieId)) {
+        killed.push(hit.zombieId)
+      }
+    } else {
+      // Cap world decals for multi-pellet blasts (still one SFX)
+      if (worldMarkers < maxWorldMarkers) {
+        worldMarkers++
+        spawnHitMarker({
           x: hit.x,
           y: hit.y,
           z: hit.z,
           nx: hit.nx,
           ny: hit.ny,
           nz: hit.nz,
-          attachId: hit.zombieId,
-          amount: result.hpDamage,
-          kind: result.killed && hit.limb === 'head' ? 'head' : result.killed ? 'kill' : kind,
+          surface: 'world',
+          scale: def.kind === 'melee' ? 0.05 : 0.032,
         })
+        if (worldMarkers === 1) spawnSurfaceDebris(hit, def)
       }
-      if (result.killed && !killed.includes(hit.zombieId)) {
-        killed.push(hit.zombieId)
+      if (!worldHitSfx) {
+        worldHitSfx = true
+        audioManager.play('world_hit', { volume: 0.55 })
       }
-    } else {
-      // World / surface impact
-      spawnHitMarker({
-        x: hit.x,
-        y: hit.y,
-        z: hit.z,
-        nx: hit.nx,
-        ny: hit.ny,
-        nz: hit.nz,
-        surface: 'world',
-        scale: def.kind === 'melee' ? 0.16 : 0.09,
+    }
+  }
+
+  // One wound band + one damage number + one hit SFX + impulse per zombie
+  for (const [id, acc] of zombieAcc) {
+    if (acc.dmgTotal > 0 || acc.pellets > 0) {
+      spawnZombieWoundFx({
+        x: acc.hx,
+        y: acc.hy,
+        z: acc.hz,
+        nx: acc.nx,
+        ny: acc.ny,
+        nz: acc.nz,
+        cx: acc.cx,
+        cy: acc.cy,
+        cz: acc.cz,
+        radius: acc.radius,
+        limb: acc.limb,
+        attachId: id,
+        head: acc.head,
+        melee: def.kind === 'melee',
+        compact: (def.pellets ?? 1) > 1,
       })
+      audioManager.play('zombie_hit', {
+        panX: acc.hx - _origin.x,
+        volume: 0.75 + Math.min(0.25, acc.pellets * 0.03),
+      })
+    }
+    if (acc.dmgTotal > 0) {
+      const kind = acc.head
+        ? 'head'
+        : acc.killed
+          ? 'kill'
+          : acc.limb === 'torso'
+            ? 'body'
+            : 'limb'
+      spawnDamageNumber({
+        x: acc.hx,
+        y: acc.hy,
+        z: acc.hz,
+        nx: acc.nx,
+        ny: acc.ny,
+        nz: acc.nz,
+        attachId: id,
+        amount: Math.max(1, Math.round(acc.dmgTotal)),
+        kind: acc.killed && acc.head ? 'head' : acc.killed ? 'kill' : kind,
+      })
+    }
+    if (acc.impX !== 0 || acc.impZ !== 0) {
+      applyHitImpulse(id, acc.impX, acc.impZ)
     }
   }
 
   return { hits, killed }
+}
+
+/** Wood splinters / concrete dust / dirt chunks at world impacts */
+function spawnSurfaceDebris(hit: HitResult, def: WeaponDef) {
+  const tag = (hit.surfaceTag ?? '').toLowerCase()
+  const isWood =
+    tag.includes('fence') ||
+    tag.includes('barn') ||
+    tag.includes('house') ||
+    tag.includes('tree') ||
+    tag.includes('hay') ||
+    tag.includes('gate') ||
+    tag.includes('outhouse')
+  const isConcrete =
+    tag.includes('silo') || tag.includes('lamp') || tag.includes('trough') || hit.ny < 0.4
+  const count = def.pellets && def.pellets > 1 ? 2 : 3
+
+  for (let i = 0; i < count; i++) {
+    const speed = 1.2 + Math.random() * 2.5
+    spawnHitMarker({
+      x: hit.x + hit.nx * 0.03,
+      y: hit.y + hit.ny * 0.03,
+      z: hit.z + hit.nz * 0.03,
+      nx: hit.nx,
+      ny: hit.ny,
+      nz: hit.nz,
+      surface: isWood ? 'debris_wood' : isConcrete ? 'debris_concrete' : 'debris_dirt',
+      scale: 0.03 + Math.random() * 0.04,
+      life: 0.45 + Math.random() * 0.4,
+      vx: hit.nx * speed + (Math.random() - 0.5) * 1.5,
+      vy: hit.ny * speed * 0.4 + 1.2 + Math.random() * 1.8,
+      vz: hit.nz * speed + (Math.random() - 0.5) * 1.5,
+    })
+  }
 }
 
 function raycastAll(origin: THREE.Vector3, dir: THREE.Vector3, maxDist: number): HitResult | null {
@@ -289,6 +514,7 @@ function raycastWorld(origin: THREE.Vector3, dir: THREE.Vector3, maxDist: number
           ny: 1,
           nz: 0,
           kind: 'world',
+          surfaceTag: 'ground',
         }
       }
     }
@@ -430,6 +656,7 @@ function rayAABB3D(
     ny,
     nz,
     kind: 'world',
+    surfaceTag: box.label ?? 'world',
   }
 }
 
@@ -470,5 +697,6 @@ function rayCircleWall(
     ny: 0,
     nz,
     kind: 'world',
+    surfaceTag: c.label ?? 'world',
   }
 }

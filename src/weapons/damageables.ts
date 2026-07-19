@@ -35,6 +35,8 @@ export type DamageableBody = {
     amount: number,
     limb?: LimbId,
     hitPoint?: { x: number; y: number; z: number },
+    /** Skip per-hit SFX (combat aggregates multi-pellet feedback) */
+    opts?: { silent?: boolean },
   ) => DamageResult
   onDeath?: () => void
 }

@@ -37,7 +37,7 @@ export const ACTION_LABELS: Record<InputAction, string> = {
   weapon2: 'Weapon 2 — Pitchfork',
   weapon3: 'Weapon 3 — Double Barrel',
   weapon4: 'Weapon 4 — .22 Lever',
-  weapon5: 'Weapon 5 — Pump Shotgun',
+  weapon5: 'Weapon 5 — Combat Pump',
   weapon6: 'Weapon 6 — MP40',
   weapon7: 'Weapon 7 — Revolver',
   cycleTimeOfDay: 'Cycle day / night',
